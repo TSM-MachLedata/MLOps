@@ -15,14 +15,15 @@ venv/
 .vscode/
 .idea/
 
-# Data and models
+# Local GCP credentials (never commit)
+.gcp/
+
+# Data and models (artifacts tracked via DVC/MLflow, not git)
 data/raw/
 data/processed/
 models/
 artifacts/
-*.csv
-*.xlsx
-*.json
+mlartifacts/
 
 # Logs and outputs
 logs/
@@ -31,12 +32,16 @@ mlruns/
 notebooks/
 *.log
 
-# DVC and MLflow
-.dvc/
+# Big data files at repo root (optional)
+*.csv
+*.xlsx
+# (removed the global *.json ignore so that params/metrics JSON can be versioned)
+
+# DVC
+# DO NOT ignore the whole .dvc directory – we need .dvc/config in git
 .dvc/cache/
 .dvc/tmp/
-#*.lock
-mlartifacts/
+.dvc/config.local
 
 # Docker and build
 *.dockerfile
@@ -48,9 +53,11 @@ __MACOSX/
 .DS_Store
 Thumbs.db
 
-# Reports and HTML exports
+# Reports and HTML/PDF exports
 reports/
 *.html
 *.pdf
-/models
-/reports
+
+# Legacy duplicates (cleanup)
+#/models
+#/reports

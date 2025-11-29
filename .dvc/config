@@ -1,0 +1,5 @@
+[core]
+    remote = gcsremote
+['remote "gcsremote"']
+    url = gs://football-mlops-yah/store
+    credentialpath = ../.gcp/sa-key.json
