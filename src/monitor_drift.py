@@ -1,4 +1,5 @@
 import os
+import json
 import pandas as pd
 from scipy.stats import ks_2samp
 import mlflow
@@ -70,7 +71,6 @@ def detect_drift(current_df, reference_df, report_prefix, reports_path):
 
     return drift_rate, csv_report_path, html_report_path
 
-
 def main():
     print("📊 Début du monitoring Data Drift...")
 
@@ -79,19 +79,16 @@ def main():
     reports_path = "reports"
     os.makedirs(reports_path, exist_ok=True)
 
-    # ============================
-    #   DATASETS TO MONITOR
-    # ============================
     datasets = {
         "model1_clean": os.path.join(processed_path, "clean_matches.csv"),
-
-        # Model 3 (player mode)
         "player_strengths": os.path.join(processed_path, "player_strengths.csv"),
         "team_match_stats": os.path.join(raw_path, "team_match_stats_model2.csv"),
         "team_season_stats": os.path.join(raw_path, "team_season_stats_model2.csv"),
     }
 
     mlflow.set_experiment("football_prediction_mlops")
+
+    drift_rates = {}  # NEW: on garde le drift de chaque dataset
 
     with mlflow.start_run(run_name="data_drift_monitoring"):
 
@@ -106,7 +103,6 @@ def main():
             current_df = pd.read_csv(current_path)
             reference_path = current_path.replace(".csv", "_reference.csv")
 
-            # Si référence absente → création
             if not os.path.exists(reference_path):
                 current_df.to_csv(reference_path, index=False)
                 print(f"🆕 Référence créée : {reference_path}")
@@ -114,18 +110,18 @@ def main():
 
             reference_df = pd.read_csv(reference_path)
 
-            # Drift
             result = detect_drift(current_df, reference_df, report_prefix, reports_path)
             if result is None:
                 continue
 
             drift_rate, csv_report, html_report = result
 
+            drift_rates[report_prefix] = drift_rate  # NEW: on stocke la valeur
+
             mlflow.log_metric(f"{report_prefix}_drift_rate", drift_rate)
             mlflow.log_artifact(csv_report)
             mlflow.log_artifact(html_report)
 
-            # Refresh auto
             THRESHOLD = 0.3
             if drift_rate > THRESHOLD:
                 backup_path = reference_path.replace(
@@ -140,7 +136,13 @@ def main():
             else:
                 print(f"✅ Pas de drift majeur pour {report_prefix}")
 
-    print("\n🎯 Monitoring terminé.")
+    # NEW: sauvegarder un petit résumé lisible par retrain_if_drift.py
+    summary_path = os.path.join(reports_path, "drift_summary.json")
+    with open(summary_path, "w", encoding="utf-8") as f:
+        json.dump(drift_rates, f, indent=2)
+
+    print(f"\n📄 Résumé du drift enregistré dans {summary_path}")
+    print("🎯 Monitoring terminé.")
 
 
 if __name__ == "__main__":

@@ -1,192 +1,42 @@
-name: retrain-and-conditional-deploy
+name: Drift monitoring & conditional retrain
 
 on:
-  workflow_dispatch: {}
   schedule:
-    - cron: "0 4 * * 1"   # Mondays 04:00 UTC (05:00 Zurich in winter)
-
-env:
-  IMAGE_NAME: football-api
-  IMAGE_TAG: latest
+    - cron: "0 3 * * *"    # tous les jours à 3h
+  workflow_dispatch:
 
 jobs:
-  retrain:
+  drift-and-retrain:
     runs-on: ubuntu-latest
-    outputs:
-      promote: ${{ steps.compare.outputs.promote }}
-      mae_home_new: ${{ steps.metrics.outputs.mae_home }}
-      mae_away_new: ${{ steps.metrics.outputs.mae_away }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Install pipeline deps
+      - name: Install deps
         run: |
-          python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install "dvc[all]"
-          # runtime deps used by predict, metrics calc
-          pip install pandas numpy scikit-learn
+          pip install "dvc[gcs]"
 
-      - name: Show DVC remotes
-        run: dvc remote list
-
-      - name: Pull cache/artifacts (if any)
-        run: |
-          dvc pull || true
-          dvc status -c || true
-
-      - name: Run full pipeline
+      - name: Configure DVC remote (GCS)
         env:
-          # You already set MLflow inside your code; local file store is fine
-          MLFLOW_TRACKING_URI: "file:./mlruns"
+          GCP_SERVICE_ACCOUNT_KEY: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
         run: |
-          dvc repro -f
-          echo "===== DVC STATUS AFTER REPRO ====="
-          dvc status -c
+          echo "$GCP_SERVICE_ACCOUNT_KEY" > gcp-key.json
+          dvc remote modify --local gcsremote credentialpath gcp-key.json
 
-      - name: Push new artifacts to DVC remote
-        run: dvc push
+      - name: Pull latest data & models
+        run: dvc pull
 
-      - name: Compute fresh metrics from predict outputs
-        id: metrics
-        run: |
-          python - << 'PY'
-          import pandas as pd
-          from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+      # (optionnel) tu peux aussi rafraîchir les données ici
+      # ex: dvc repro fetch_data extract_matches_model2 ...
 
-          df = pd.read_csv("data/predictions/predicted_matches.csv")
-          # Your predict.py writes columns: home_goals, away_goals, pred_home_goals, pred_away_goals
-          mae_home = mean_absolute_error(df["home_goals"], df["pred_home_goals"])
-          mae_away = mean_absolute_error(df["away_goals"], df["pred_away_goals"])
-          mse_home = mean_squared_error(df["home_goals"], df["pred_home_goals"])
-          mse_away = mean_squared_error(df["away_goals"], df["pred_away_goals"])
-          r2_home = r2_score(df["home_goals"], df["pred_home_goals"])
-          r2_away = r2_score(df["away_goals"], df["pred_away_goals"])
-
-          print("Fresh metrics:")
-          print("MAE_HOME", mae_home)
-          print("MAE_AWAY", mae_away)
-
-          # Expose a few as GitHub outputs
-          import os
-          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
-              f.write(f"mae_home={mae_home}\n")
-              f.write(f"mae_away={mae_away}\n")
-              f.write(f"mse_home={mse_home}\n")
-              f.write(f"mse_away={mse_away}\n")
-              f.write(f"r2_home={r2_home}\n")
-              f.write(f"r2_away={r2_away}\n")
-          PY
-
-      - name: Load baseline metrics (if exist)
-        id: baseline
-        run: |
-          if [ -f metrics/baseline.json ]; then
-            echo "baseline_file=true" >> $GITHUB_OUTPUT
-          else
-            echo "baseline_file=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Compare with baseline and decide promotion
-        id: compare
-        run: |
-          python - << 'PY'
-          import json, os, pathlib
-
-          # read new metrics from previous step env (GitHub outputs)
-          new_mae_home = float(os.environ.get("MAE_HOME", os.environ.get("mae_home","0")))
-          new_mae_away = float(os.environ.get("MAE_AWAY", os.environ.get("mae_away","0")))
-
-          # thresholds: promote if BOTH improved (you can relax this)
-          promote = True
-          baseline_path = pathlib.Path("metrics/baseline.json")
-          if baseline_path.exists():
-              with open(baseline_path, "r", encoding="utf-8") as f:
-                  base = json.load(f)
-              promote = (new_mae_home <= base.get("mae_home", 1e9)) and (new_mae_away <= base.get("mae_away", 1e9))
-
-          # write decision
-          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
-              f.write(f"promote={'true' if promote else 'false'}\n")
-          print("PROMOTE:", promote)
-          PY
+      - name: Monitor drift & conditional retrain
         env:
-          mae_home: ${{ steps.metrics.outputs.mae_home }}
-          mae_away: ${{ steps.metrics.outputs.mae_away }}
-
-      - name: Update baseline if improved
-        if: steps.compare.outputs.promote == 'true'
-        run: |
-          mkdir -p metrics
-          python - << 'PY'
-          import json, os
-          data = {
-            "mae_home": float(os.environ.get("MAE_HOME")),
-            "mae_away": float(os.environ.get("MAE_AWAY"))
-          }
-          with open("metrics/baseline.json", "w", encoding="utf-8") as f:
-              json.dump(data, f, indent=2)
-          PY
-        env:
-          MAE_HOME: ${{ steps.metrics.outputs.mae_home }}
-          MAE_AWAY: ${{ steps.metrics.outputs.mae_away }}
-
-      - name: Commit & push updated dvc.lock and baseline (if any)
-        if: steps.compare.outputs.promote == 'true'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add dvc.lock metrics/baseline.json || true
-          if ! git diff --cached --quiet; then
-            git commit -m "chore: retrain - update lock & baseline [skip ci]"
-            git push
-          else
-            echo "Nothing to commit."
-          fi
-
-      - name: Upload run artifacts (for inspection)
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: retrain-run
-          path: |
-            data/processed/clean_matches.csv
-            data/predictions/predicted_matches.csv
-            app/model/*.json
-            metrics/baseline.json
-            mlruns/
-          if-no-files-found: ignore
-
-  docker:
-    needs: retrain
-    if: needs.retrain.outputs.promote == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Build and push image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: true
-          tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
-            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          DRIFT_THRESHOLD: "0.30"
+        run: python src/retrain_if_drift.py

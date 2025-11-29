@@ -62,6 +62,14 @@ stages:
       - data/raw/team_season_stats_model2.csv
 
   # MODEL 2 PREPROCESS & TRAIN
+  build_team_name_mapping:
+    cmd: python src/build_team_name_mapping.py
+    deps:
+      - src/build_team_name_mapping.py
+      - data/raw/schedule_model2.csv
+      - data/raw/team_season_stats_model2.csv
+    outs:
+      - data/team_name_mapping.csv
 
   preprocess_model2:
     cmd: python src/preprocess_model2.py
