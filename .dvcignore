@@ -19,4 +19,3 @@ __pycache__/
 
 # Local artifacts you don't need in the image
 mlruns/
-reports/
