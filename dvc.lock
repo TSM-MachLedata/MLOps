@@ -45,8 +45,8 @@ stages:
       size: 11353191
     - path: src/train.py
       hash: md5
-      md5: 5fd1ca86841de0ba6546543efccd842b
-      size: 3497
+      md5: e9148ef39568d957ba0b2fa56388ca42
+      size: 5389
     outs:
     - path: app/models/away_model.json
       hash: md5
@@ -56,6 +56,10 @@ stages:
       hash: md5
       md5: 98e5d508a7384ca0df4ac789c8d4dee2
       size: 335151
+    - path: reports/model1_metrics.json
+      hash: md5
+      md5: cf869f74a8e745701b8c8fdcb3e60efb
+      size: 282
   predict:
     cmd: python src/predict.py
     deps:
@@ -141,37 +145,41 @@ stages:
       size: 54117
     - path: src/train_model2.py
       hash: md5
-      md5: 4c64c6ee63bf6c23281b9e7bb46ed479
-      size: 4885
+      md5: 2f94a371c56c1fdc1f99fb94aaf48e70
+      size: 6530
     outs:
     - path: data/processed/model2_training_dataset.csv
       hash: md5
-      md5: fae1c5b2aa203c8d9427ff4eb653a048
-      size: 369496925
+      md5: 84c1a8aa97dfc995a1facec072150d8b
+      size: 367510685
     - path: models/model2_xgb.json
       hash: md5
       md5: 75a71fd06a244aab9acdd38d99937ecb
       size: 7091676
+    - path: reports/model2_metrics.json
+      hash: md5
+      md5: 116b8faca5805e0506dfd5360d229a4f
+      size: 284
   predict_model2:
     cmd: python src/predict_model2.py
     deps:
     - path: data/processed/model2_training_dataset.csv
       hash: md5
-      md5: fae1c5b2aa203c8d9427ff4eb653a048
-      size: 369496925
+      md5: 84c1a8aa97dfc995a1facec072150d8b
+      size: 367510685
     - path: models/model2_xgb.json
       hash: md5
       md5: 75a71fd06a244aab9acdd38d99937ecb
       size: 7091676
     - path: src/predict_model2.py
       hash: md5
-      md5: 40602c05fbd7504841b06ff78ca67272
-      size: 4211
+      md5: 2403b4fcde5bdea0cff9dd91721d7fe3
+      size: 5999
     outs:
     - path: data/predictions/model2_predictions.csv
       hash: md5
-      md5: 3a4879bb8c06555ceac101e597654484
-      size: 134
+      md5: c97a947237b6de330fe1237af39202c5
+      size: 136
   predict_model3_players:
     cmd: python src/predict_model2_players.py
     deps:
@@ -193,8 +201,8 @@ stages:
       size: 7091676
     - path: src/predict_model2_players.py
       hash: md5
-      md5: 91eb21b60ebf57ae2a31c8ae4cb811c2
-      size: 5634
+      md5: d28d37f5318fe5b1da30f17353b66b23
+      size: 7835
     outs:
     - path: data/predictions/model3_players_output.csv
       hash: md5
@@ -224,11 +232,10 @@ stages:
       md5: 33540fbcba9d01d0912cf02758347150
       size: 5346
     outs:
-    - path: reports/
+    - path: reports/drift_summary.json
       hash: md5
-      md5: 5540c1f7afce34578fed6928109e5117.dir
-      size: 7459
-      nfiles: 9
+      md5: 4a882c70c83ab255b7bcdb98673d2cdf
+      size: 112
   extract_matches_model2:
     cmd: python -m src.data_extraction.extract_matches
     deps:
@@ -305,3 +312,51 @@ stages:
       hash: md5
       md5: 1d332bc89bb3c15cb9c3f972d8098793
       size: 3056
+  eval_model3_player_mode:
+    cmd: python src/eval_model3_player_mode.py
+    deps:
+    - path: data/processed/model2_training_dataset.csv
+      hash: md5
+      md5: 84c1a8aa97dfc995a1facec072150d8b
+      size: 367510685
+    - path: data/processed/player_strengths.csv
+      hash: md5
+      md5: 4f3914328466a8b3bab67288d4d04910
+      size: 410531
+    - path: models/model2_xgb.json
+      hash: md5
+      md5: 75a71fd06a244aab9acdd38d99937ecb
+      size: 7091676
+    - path: src/eval_model3_player_mode.py
+      hash: md5
+      md5: aa2ab2ba365cb813c7650e19350f44a3
+      size: 8983
+    outs:
+    - path: reports/model3_player_mode_metrics.json
+      hash: md5
+      md5: 0ffc65a72fb52aee1bf502beb3f5f7eb
+      size: 289
+  select_champion:
+    cmd: python src/select_champion.py
+    deps:
+    - path: reports/model1_metrics.json
+      hash: md5
+      md5: cf869f74a8e745701b8c8fdcb3e60efb
+      size: 282
+    - path: reports/model2_metrics.json
+      hash: md5
+      md5: 116b8faca5805e0506dfd5360d229a4f
+      size: 284
+    - path: reports/model3_player_mode_metrics.json
+      hash: md5
+      md5: 0ffc65a72fb52aee1bf502beb3f5f7eb
+      size: 289
+    - path: src/select_champion.py
+      hash: md5
+      md5: 2fab40a1774b63fad63bc3891f65ed30
+      size: 1913
+    outs:
+    - path: app/champion_config.json
+      hash: md5
+      md5: 6815cbd9f51ec199786ff25647171519
+      size: 455

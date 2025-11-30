@@ -1,0 +1,69 @@
+name: Deploy API to Cloud Run
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+      REGION: europe-west4                     # même région que ton repo AR
+      SERVICE_NAME: football-mlops-api
+      REPO_NAME: football-mlops               # nom du repo Artifact Registry
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deps for DVC
+        run: |
+          pip install -r requirements.txt
+          pip install "dvc[gs]"
+
+      - name: Configure DVC remote (GCS)
+        env:
+          GCP_SERVICE_ACCOUNT_KEY: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+        run: |
+          echo "$GCP_SERVICE_ACCOUNT_KEY" > gcp-key.json
+          dvc remote modify --local gcsremote credentialpath gcp-key.json
+
+      - name: Pull data, models & champion config
+        run: dvc pull
+
+      # Auth GCP pour build & deploy
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+
+      # Build & push vers Artifact Registry
+      - name: Build & push container image
+        run: |
+          IMAGE="$REGION-docker.pkg.dev/$PROJECT_ID/$REPO_NAME/$SERVICE_NAME:latest"
+          echo "IMAGE=$IMAGE" >> $GITHUB_ENV
+          gcloud builds submit \
+            --project "$PROJECT_ID" \
+            --tag "$IMAGE"
+
+      # Deploy sur Cloud Run
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy "$SERVICE_NAME" \
+            --image "$IMAGE" \
+            --platform managed \
+            --region "$REGION" \
+            --allow-unauthenticated

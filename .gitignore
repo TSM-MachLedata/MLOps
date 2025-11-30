@@ -9,6 +9,7 @@ __pycache__/
 # Environment and IDE files
 .env
 .venv/
+.ci-venv/
 env/
 venv/
 .ipynb_checkpoints/
@@ -54,7 +55,6 @@ __MACOSX/
 Thumbs.db
 
 # Reports and HTML/PDF exports
-reports/
 *.html
 *.pdf
 

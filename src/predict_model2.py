@@ -2,10 +2,12 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 from xgboost import XGBClassifier
+from sklearn.metrics import accuracy_score, f1_score, mean_squared_error, mean_absolute_error, r2_score
 import os
 
 import warnings
 warnings.filterwarnings("ignore")
+
 
 # ----------------------------------------------------------
 # UTILS
@@ -36,9 +38,6 @@ def load_artifacts():
 # ----------------------------------------------------------
 
 def build_input_features(df_train, home, away):
-    """
-    We take the latest known stats for both teams
-    """
 
     home_row = df_train[df_train["home_team_clean"] == home].tail(1)
     away_row = df_train[df_train["away_team_clean"] == away].tail(1)
@@ -86,7 +85,7 @@ def predict(model, features, home, away):
         2: f"{home} WIN"
     }
 
-    return mapping[pred], proba
+    return mapping[pred], proba, pred
 
 
 # ----------------------------------------------------------
@@ -102,7 +101,7 @@ def main():
 
     features = build_input_features(df_train, home, away)
 
-    outcome, proba = predict(model, features, home, away)
+    outcome, proba, pred_class = predict(model, features, home, away)
 
     print("\n================= RESULT =================")
     print(f"Prediction: {outcome}")
@@ -110,6 +109,45 @@ def main():
     print(f"  Away Win : {proba[0]:.3f}")
     print(f"  Draw     : {proba[1]:.3f}")
     print(f"  Home Win : {proba[2]:.3f}")
+    print("==========================================\n")
+
+    # ------------------------------------------------------
+    # ADD METRICS LIKE MODEL 1
+    # ------------------------------------------------------
+
+    # Load true labels & preds to compute metrics
+    y_true = df_train["result_xgb"]       # True labels 0/1/2
+    features_all = df_train[features.columns]  # X for all dataset
+
+    y_pred_all = model.predict(features_all)
+
+    acc = accuracy_score(y_true, y_pred_all)
+    f1 = f1_score(y_true, y_pred_all, average="macro")
+
+    # For classification, we adapt regression metrics using mean of probabilities
+    mse_home = mean_squared_error([1 if y==2 else 0 for y in y_true],
+                                  [p[2] for p in model.predict_proba(features_all)])
+    mae_home = mean_absolute_error([1 if y==2 else 0 for y in y_true],
+                                   [p[2] for p in model.predict_proba(features_all)])
+    r2_home = r2_score([1 if y==2 else 0 for y in y_true],
+                       [p[2] for p in model.predict_proba(features_all)])
+
+    mse_away = mean_squared_error([1 if y==0 else 0 for y in y_true],
+                                  [p[0] for p in model.predict_proba(features_all)])
+    mae_away = mean_absolute_error([1 if y==0 else 0 for y in y_true],
+                                   [p[0] for p in model.predict_proba(features_all)])
+    r2_away = r2_score([1 if y==0 else 0 for y in y_true],
+                       [p[0] for p in model.predict_proba(features_all)])
+
+    print("\n📊 === MODEL 2 METRICS ===")
+    print(f"Accuracy : {acc:.4f}")
+    print(f"F1 Score : {f1:.4f}")
+    print(f"MSE Home : {mse_home:.4f}")
+    print(f"MAE Home : {mae_home:.4f}")
+    print(f"R2 Home  : {r2_home:.4f}")
+    print(f"MSE Away : {mse_away:.4f}")
+    print(f"MAE Away : {mae_away:.4f}")
+    print(f"R2 Away  : {r2_away:.4f}")
     print("==========================================\n")
 
     # ----------------------------------------------------------

@@ -26,6 +26,7 @@ stages:
     outs:
       - app/models/home_model.json
       - app/models/away_model.json
+      - reports/model1_metrics.json
 
   predict:
     cmd: python src/predict.py
@@ -91,6 +92,7 @@ stages:
     outs:
       - models/model2_xgb.json
       - data/processed/model2_training_dataset.csv
+      - reports/model2_metrics.json
 
   predict_model2:
     cmd: python src/predict_model2.py
@@ -132,4 +134,27 @@ stages:
       - data/raw/team_match_stats_model2.csv
       - data/raw/team_season_stats_model2.csv
     outs:
-      - reports/
+      - reports/drift_summary.json
+
+  eval_model3_player_mode:
+    cmd: python src/eval_model3_player_mode.py
+    deps:
+      - src/eval_model3_player_mode.py
+      - models/model2_xgb.json
+      - data/processed/model2_training_dataset.csv
+      - data/processed/player_strengths.csv
+    outs:
+      - reports/model3_player_mode_metrics.json
+
+  select_champion:
+    cmd: python src/select_champion.py
+    deps:
+      - src/select_champion.py
+      - reports/model1_metrics.json
+      - reports/model2_metrics.json
+      - reports/model3_player_mode_metrics.json
+    outs:
+      - app/champion_config.json
+
+
+

@@ -34,9 +34,7 @@ def read_drift_summary():
 
 def retrain_models():
     """
-    Ici tu décides ce que tu réentraîne quand drift > seuil.
-    Comme tu veux garder simple : on réentraîne tous les modèles si un drift est détecté.
-    Si tu veux, tu peux affiner plus tard.
+    Quand drift > seuil : on réentraîne tous les modèles + re-sélection du champion.
     """
 
     # MODEL 1 (multi-ligues)
@@ -51,10 +49,15 @@ def retrain_models():
     log("🚀 Update MODEL 3 (stage DVC: build_player_strengths)")
     subprocess.check_call(["dvc", "repro", "build_player_strengths"])
 
+    # 🏆 Sélection du champion (lancera aussi eval_model3_player_mode si besoin)
+    log("🏆 Evaluate player-mode & select champion (stage DVC: select_champion)")
+    subprocess.check_call(["dvc", "repro", "select_champion"])
+
     # Push vers GCS via DVC
-    log("☁️ dvc push (data + modèles vers GCS)...")
+    log("☁️ dvc push (data + modèles + champion vers GCS)...")
     subprocess.check_call(["dvc", "push"])
     log("✅ dvc push terminé.")
+
 
 
 def main():
