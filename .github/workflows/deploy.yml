@@ -3,7 +3,8 @@ name: Deploy API to Cloud Run
 on:
   workflow_dispatch:
   push:
-    branches: [ main ]
+    branches:
+      - main
 
 jobs:
   deploy:
@@ -39,7 +40,7 @@ jobs:
       - name: Pull data, models & champion config
         run: dvc pull
 
-      - name: Debug: list data and models
+      - name: Debug list data and models
         run: |
           echo "PWD: $(pwd)"
           echo "---- data/processed ----"
@@ -49,7 +50,8 @@ jobs:
           echo "---- app/models ----"
           ls -R app/models || echo "app/models missing"
 
-      - id: auth
+      - name: Auth to Google Cloud
+        id: auth
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
@@ -60,8 +62,7 @@ jobs:
           project_id: ${{ env.PROJECT_ID }}
 
       - name: Configure Docker auth for Artifact Registry
-        run: |
-          gcloud auth configure-docker $REGION-docker.pkg.dev --quiet
+        run: gcloud auth configure-docker $REGION-docker.pkg.dev --quiet
 
       - name: Build container image
         run: |
