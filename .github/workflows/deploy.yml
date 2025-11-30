@@ -11,9 +11,9 @@ jobs:
 
     env:
       PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-      REGION: europe-west4                     # même région que ton repo AR
+      REGION: europe-west4
       SERVICE_NAME: football-mlops-api
-      REPO_NAME: football-mlops               # nom du repo Artifact Registry
+      REPO_NAME: football-mlops
 
     steps:
       - name: Checkout
@@ -39,7 +39,6 @@ jobs:
       - name: Pull data, models & champion config
         run: dvc pull
 
-      # Auth GCP pour build & deploy
       - id: auth
         uses: google-github-actions/auth@v2
         with:
@@ -50,16 +49,17 @@ jobs:
         with:
           project_id: ${{ env.PROJECT_ID }}
 
-      # Build & push vers Artifact Registry
+      - name: Configure Docker auth for Artifact Registry
+        run: |
+          gcloud auth configure-docker $REGION-docker.pkg.dev --quiet
+
       - name: Build & push container image
         run: |
           IMAGE="$REGION-docker.pkg.dev/$PROJECT_ID/$REPO_NAME/$SERVICE_NAME:latest"
           echo "IMAGE=$IMAGE" >> $GITHUB_ENV
-          gcloud builds submit \
-            --project "$PROJECT_ID" \
-            --tag "$IMAGE"
+          docker build -t "$IMAGE" .
+          docker push "$IMAGE"
 
-      # Deploy sur Cloud Run
       - name: Deploy to Cloud Run
         run: |
           gcloud run deploy "$SERVICE_NAME" \
