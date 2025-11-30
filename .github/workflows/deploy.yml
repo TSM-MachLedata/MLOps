@@ -67,5 +67,5 @@ jobs:
             --platform managed \
             --region "$REGION" \
             --allow-unauthenticated \
-            --port 8000
-
+            --port 8080 \
+            --memory 1Gi
