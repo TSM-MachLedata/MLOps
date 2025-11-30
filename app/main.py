@@ -32,7 +32,7 @@ else:
 
 print(f"🏆 Loaded champion key: {CHAMPION_KEY}")
 
-# Small helper to tag champion in the "model" field  # NEW
+# Small helper to tag champion in the "model" field
 def with_champion_tag(base_key: str) -> str:
     return base_key + (" (champion)" if CHAMPION_KEY == base_key else "")
 
@@ -61,7 +61,7 @@ MODEL2_TEAM_LOOKUP: Dict[str, str] = {}
 PLAYER_TEAM_LOOKUP: Dict[str, str] = {}
 
 
-def _build_lookup(names: List[str]) -> Dict[str, str]:  # NEW
+def _build_lookup(names: List[str]) -> Dict[str, str]:
     """Map lower-cased name -> canonical name."""
     lookup: Dict[str, str] = {}
     for n in names:
@@ -71,32 +71,53 @@ def _build_lookup(names: List[str]) -> Dict[str, str]:  # NEW
         if not canon:
             continue
         key = canon.lower()
-        # first one wins if duplicates
         lookup.setdefault(key, canon)
     return lookup
 
 
 # ---- Model 2 artifacts ------------------------------------------------
 try:
+    print("🔧 [model2] CWD:", os.getcwd())
+    print("🔧 [model2] ls . :", os.listdir("."))
+    print("🔧 [model2] models/ exists?", os.path.exists("models"))
+    print("🔧 [model2] data/processed exists?", os.path.exists("data/processed"))
+
     model2_clf = xgb.XGBClassifier()
-    model2_clf.load_model("models/model2_xgb.json")
-    df_model2_train = pd.read_csv("data/processed/model2_training_dataset.csv")
+    model2_model_path = "models/model2_xgb.json"
+    print(f"🔧 [model2] Loading classifier from: {model2_model_path} (exists? {os.path.exists(model2_model_path)})")
+    model2_clf.load_model(model2_model_path)
+
+    csv_path = "data/processed/model2_training_dataset.csv"
+    print(f"🔧 [model2] Loading training dataset from: {csv_path} (exists? {os.path.exists(csv_path)})")
+    df_model2_train = pd.read_csv(csv_path)
+    print("🔧 [model2] df_model2_train shape:", df_model2_train.shape)
 
     if "home_team_clean" in df_model2_train.columns and "away_team_clean" in df_model2_train.columns:
         MODEL2_TEAMS = sorted(
             set(df_model2_train["home_team_clean"].dropna().unique())
             | set(df_model2_train["away_team_clean"].dropna().unique())
         )
-    MODEL2_TEAM_LOOKUP = _build_lookup(MODEL2_TEAMS)  # NEW
+    MODEL2_TEAM_LOOKUP = _build_lookup(MODEL2_TEAMS)
     print(f"✅ Loaded model2 classifier & training dataset. {len(MODEL2_TEAMS)} teams.")
 except Exception as e:
     print(f"⚠️ Could not load model2 artifacts: {e}")
 
 # ---- Player-mode + team stats artifacts (model3 + model1) ------------
 try:
-    player_strengths_df = pd.read_csv("data/processed/player_strengths.csv")
-    team_stats_df = pd.read_csv("data/raw/team_stats_multi_leagues.csv")
-    match_stats_df = pd.read_csv("data/raw/team_match_stats_model2.csv")
+    player_strengths_path = "data/processed/player_strengths.csv"
+    team_stats_path = "data/raw/team_stats_multi_leagues.csv"
+    match_stats_path = "data/raw/team_match_stats_model2.csv"
+
+    print(
+        "🔧 [players/model1] Files existence:\n"
+        f"  {player_strengths_path}: {os.path.exists(player_strengths_path)}\n"
+        f"  {team_stats_path}: {os.path.exists(team_stats_path)}\n"
+        f"  {match_stats_path}: {os.path.exists(match_stats_path)}"
+    )
+
+    player_strengths_df = pd.read_csv(player_strengths_path)
+    team_stats_df = pd.read_csv(team_stats_path)
+    match_stats_df = pd.read_csv(match_stats_path)
 
     # NEW: normalize columns for case-insensitive search
     if player_strengths_df is not None:
@@ -109,11 +130,11 @@ try:
 
     if "team" in player_strengths_df.columns:
         PLAYER_TEAMS = sorted(player_strengths_df["team"].dropna().unique())
-        PLAYER_TEAM_LOOKUP = _build_lookup(PLAYER_TEAMS)  # NEW
+        PLAYER_TEAM_LOOKUP = _build_lookup(PLAYER_TEAMS)
 
     if "team" in team_stats_df.columns:
         MODEL1_TEAMS = sorted(team_stats_df["team"].dropna().unique())
-        MODEL1_TEAM_LOOKUP = _build_lookup(MODEL1_TEAMS)  # NEW
+        MODEL1_TEAM_LOOKUP = _build_lookup(MODEL1_TEAMS)
 
     # NEW: normalized opponent column for case-insensitive xG lookup
     if match_stats_df is not None and "opponent" in match_stats_df.columns:
@@ -131,10 +152,18 @@ except Exception as e:
 
 # ---- Model 1 regression (home/away goals) -----------------------------
 try:
+    home_model_path = "app/models/home_model.json"
+    away_model_path = "app/models/away_model.json"
+    print(
+        "🔧 [model1] Files existence:\n"
+        f"  {home_model_path}: {os.path.exists(home_model_path)}\n"
+        f"  {away_model_path}: {os.path.exists(away_model_path)}"
+    )
+
     home_reg = xgb.XGBRegressor()
     away_reg = xgb.XGBRegressor()
-    home_reg.load_model("app/models/home_model.json")
-    away_reg.load_model("app/models/away_model.json")
+    home_reg.load_model(home_model_path)
+    away_reg.load_model(away_model_path)
     print("✅ Loaded model1 regression models.")
 except Exception as e:
     print(f"⚠️ Could not load model1 regression models: {e}")
@@ -206,7 +235,7 @@ def build_features_model1(home_team: str, away_team: str) -> pd.DataFrame:
     if home_team == away_team:
         raise HTTPException(status_code=400, detail="home_team and away_team must be different.")
 
-    # NEW: canonical names (case-insensitive)
+    # canonical names (case-insensitive)
     home_team_canon = validate_team_exists(home_team, context="model1")
     away_team_canon = validate_team_exists(away_team, context="model1")
 
@@ -237,7 +266,7 @@ def build_features_model1(home_team: str, away_team: str) -> pd.DataFrame:
                 "away_goals_diff": a_diff,
             }
         ]
-    ), home_team_canon, away_team_canon  # NEW: return canonical names too
+    ), home_team_canon, away_team_canon
 
 
 # ---------- model2 feature builder (team-level classifier) -------------
@@ -249,7 +278,7 @@ def build_features_model2(home_team: str, away_team: str) -> pd.DataFrame:
     if home_team == away_team:
         raise HTTPException(status_code=400, detail="home_team and away_team must be different.")
 
-    # NEW: canonical names (case-insensitive)
+    # canonical names (case-insensitive)
     home_team_canon = validate_team_exists(home_team, context="model2")
     away_team_canon = validate_team_exists(away_team, context="model2")
 
@@ -280,7 +309,7 @@ def build_features_model2(home_team: str, away_team: str) -> pd.DataFrame:
         index=[0],
     )
 
-    return row, home_team_canon, away_team_canon  # NEW: return canonical names
+    return row, home_team_canon, away_team_canon
 
 
 # ---------- player-mode helpers ---------------------------------------
@@ -290,10 +319,9 @@ def compute_team_strength(team: str, players: List[str]) -> float:
     if player_strengths_df is None:
         raise HTTPException(status_code=500, detail="Player strengths not loaded.")
 
-    team_canon = validate_team_exists(team, context="players")  # NEW
+    team_canon = validate_team_exists(team, context="players")
 
-    # Clean + normalize player names
-    pairs = [(p.strip(), p.strip().lower()) for p in players if p.strip()]  # NEW
+    pairs = [(p.strip(), p.strip().lower()) for p in players if p.strip()]
     cleaned = [p for p, _ in pairs]
     cleaned_norm = [pn for _, pn in pairs]
 
@@ -308,7 +336,7 @@ def compute_team_strength(team: str, players: List[str]) -> float:
             detail=f"Duplicate player names detected for team {team}. Players must be unique.",
         )
 
-    df_team = player_strengths_df[player_strengths_df["team_norm"] == team_canon.lower()]  # NEW
+    df_team = player_strengths_df[player_strengths_df["team_norm"] == team_canon.lower()]
 
     if df_team.empty:
         raise HTTPException(status_code=400, detail=f"No players found for team: {team_canon}")
@@ -317,7 +345,6 @@ def compute_team_strength(team: str, players: List[str]) -> float:
     missing_norm = [p for p in cleaned_norm if p not in known_players_norm]
 
     if missing_norm:
-        # remonter les noms tels qu'envoyés par l'utilisateur
         missing_original = [
             cleaned[i] for i, norm in enumerate(cleaned_norm) if norm in missing_norm
         ]
@@ -352,8 +379,8 @@ def build_features_player_mode(
     if home_team == away_team:
         raise HTTPException(status_code=400, detail="home_team and away_team must be different.")
 
-    home_team_canon = validate_team_exists(home_team, context="players")  # NEW
-    away_team_canon = validate_team_exists(away_team, context="players")  # NEW
+    home_team_canon = validate_team_exists(home_team, context="players")
+    away_team_canon = validate_team_exists(away_team, context="players")
 
     team_stats = team_stats_df
     match_stats = match_stats_df
@@ -376,7 +403,7 @@ def build_features_player_mode(
     a_gf_home, a_gf_away, a_ga_home, a_ga_away, a_mp, a_gf_total = get_team_stats(away_team_canon)
 
     def get_team_xg(team):
-        df = match_stats[match_stats["opponent_norm"] == team.lower()]  # NEW
+        df = match_stats[match_stats["opponent_norm"] == team.lower()]
         if df.empty:
             return 0.0
         return float(df["xG"].mean())
@@ -442,7 +469,7 @@ def predict_model1(req: TeamRequest):
         result = "DRAW"
 
     return {
-        "model": with_champion_tag("model1"),  # NEW: tag champion in model field
+        "model": with_champion_tag("model1"),
         "is_champion": CHAMPION_KEY == "model1",
         "home_team": home_team_canon,
         "away_team": away_team_canon,
@@ -470,7 +497,7 @@ def predict_model2(req: TeamRequest):
     }
 
     return {
-        "model": with_champion_tag("model2"),  # NEW
+        "model": with_champion_tag("model2"),
         "is_champion": CHAMPION_KEY == "model2",
         "home_team": home_team_canon,
         "away_team": away_team_canon,
@@ -495,7 +522,6 @@ def predict_player_mode(req: PlayerMatchRequest):
     proba = model2_clf.predict_proba(X)[0]
     pred_class = int(proba.argmax())
 
-    # on renvoie les noms tels que fournis, mais on pourrait aussi les canoniser si tu préfères
     mapping = {
         0: f"{req.away_team} WIN",
         1: "DRAW",
@@ -503,7 +529,7 @@ def predict_player_mode(req: PlayerMatchRequest):
     }
 
     return {
-        "model": with_champion_tag("model3_player_mode"),  # NEW
+        "model": with_champion_tag("model3_player_mode"),
         "is_champion": CHAMPION_KEY == "model3_player_mode",
         "home_team": req.home_team,
         "away_team": req.away_team,

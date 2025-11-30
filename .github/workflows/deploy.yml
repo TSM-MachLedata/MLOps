@@ -39,6 +39,16 @@ jobs:
       - name: Pull data, models & champion config
         run: dvc pull
 
+      - name: Debug: list data and models
+        run: |
+          echo "PWD: $(pwd)"
+          echo "---- data/processed ----"
+          ls -R data/processed || echo "data/processed missing"
+          echo "---- models ----"
+          ls -R models || echo "models missing"
+          echo "---- app/models ----"
+          ls -R app/models || echo "app/models missing"
+
       - id: auth
         uses: google-github-actions/auth@v2
         with:
@@ -53,12 +63,29 @@ jobs:
         run: |
           gcloud auth configure-docker $REGION-docker.pkg.dev --quiet
 
-      - name: Build & push container image
+                - name: Build container image
         run: |
           IMAGE="$REGION-docker.pkg.dev/$PROJECT_ID/$REPO_NAME/$SERVICE_NAME:latest"
           echo "IMAGE=$IMAGE" >> $GITHUB_ENV
           docker build -t "$IMAGE" .
-          docker push "$IMAGE"
+
+      - name: Smoke test container in CI
+        run: |
+          # Start container like you do locally
+          docker run -d --name api -e PORT=8080 -p 8080:8080 "$IMAGE"
+          echo "Waiting for container to boot..."
+          sleep 25
+          echo "Calling /docs..."
+          set -x
+          curl -f http://localhost:8080/docs || (
+            echo "Container logs:"
+            docker logs api
+            exit 1
+          )
+          docker rm -f api
+
+      - name: Push image
+        run: docker push "$IMAGE"
 
       - name: Deploy to Cloud Run
         run: |
@@ -66,6 +93,4 @@ jobs:
             --image "$IMAGE" \
             --platform managed \
             --region "$REGION" \
-            --allow-unauthenticated \
-            --port 8080 \
-            --memory 1Gi
+            --allow-unauthenticated

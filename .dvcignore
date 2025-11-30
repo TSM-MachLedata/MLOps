@@ -1,3 +1,22 @@
-# Add patterns of files dvc should ignore, which could improve
-# the performance. Learn more at
-# https://dvc.org/doc/user-guide/dvcignore
+# Git / CI
+.git
+.github
+.gitignore
+
+# DVC cache (keep actual data files!)
+.dvc/cache
+
+# Python junk
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.ipynb_checkpoints
+
+# Virtual envs
+.venv
+.ci-venv
+
+# Local artifacts you don't need in the image
+mlruns/
+reports/
