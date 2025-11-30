@@ -55,6 +55,7 @@ __MACOSX/
 Thumbs.db
 
 # Reports and HTML/PDF exports
+reports/
 *.html
 *.pdf
 
