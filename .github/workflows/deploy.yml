@@ -66,4 +66,6 @@ jobs:
             --image "$IMAGE" \
             --platform managed \
             --region "$REGION" \
-            --allow-unauthenticated
+            --allow-unauthenticated \
+            --port 8000
+

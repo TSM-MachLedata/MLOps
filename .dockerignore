@@ -1,0 +1,34 @@
+# Version control & CI
+.git
+.github
+.gitignore
+
+# Python / venvs
+.venv
+.ci-venv
+env
+venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+
+# DVC internals (cache + tmp), not needed in the container
+.dvc
+.dvc/cache
+.dvc/tmp
+.dvcignore
+
+# MLflow / experiment outputs
+mlruns
+mlartifacts
+logs
+runs
+
+# Notebooks & reports (not needed for serving the API)
+notebooks
+reports
+
+# OS cruft
+.DS_Store
+Thumbs.db
