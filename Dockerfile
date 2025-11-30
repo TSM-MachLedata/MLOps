@@ -2,20 +2,19 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# dépendances système minimales (xgboost, scipy, etc.)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libgomp1 \
  && rm -rf /var/lib/apt/lists/*
 
-# Installer les dépendances Python
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copier le code + artefacts (modèles, data pullés par DVC avant build)
 COPY . .
 
 ENV PYTHONUNBUFFERED=1
+# ❌ DO NOT hard-code PORT here
+# ENV PORT=8000   <-- remove this line if you still have it
 
-# ⚠️ IMPORTANT: use PORT env var (Cloud Run sets it)
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8080}"]
+# ✅ Use $PORT provided by Cloud Run (default 8080), fallback 8000 for local
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
