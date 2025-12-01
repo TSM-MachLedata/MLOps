@@ -33,8 +33,18 @@ jobs:
       - name: Pull latest data & models
         run: dvc pull
 
-      # (optionnel) tu peux aussi rafraîchir les données ici
-      # ex: dvc repro fetch_data extract_matches_model2 ...
+      - name: Refresh raw & processed data via DVC
+        run: |
+          # Force recompute stages that touch external data
+          dvc repro --force fetch_data
+          dvc repro --force extract_matches_model2
+          dvc repro --force extract_player_stats_model2
+          dvc repro --force extract_team_stats_model2
+          dvc repro --force preprocess
+          dvc repro --force preprocess_model2
+          dvc repro --force build_player_strengths
+          dvc push
+
 
       - name: Monitor drift & conditional retrain
         env:
