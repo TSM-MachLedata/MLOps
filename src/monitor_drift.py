@@ -10,6 +10,9 @@ from google.cloud import storage
 # Bucket where reference CSVs are stored (default = "reference_drift")
 DRIFT_GCS_BUCKET = os.getenv("DRIFT_GCS_BUCKET", "reference_drift")
 
+# 👇 NEW: same threshold env-var as retrain_if_drift.py
+DRIFT_THRESHOLD = float(os.getenv("DRIFT_THRESHOLD", "0.30"))
+
 
 # ===============================
 # 🔥 GCS HELPERS FOR REFERENCES
@@ -153,7 +156,10 @@ def detect_drift(current_df, reference_df, report_prefix, reports_path):
     # ===== HTML REPORT =====
     html_content = f"""
     <html>
-    <head><title>Data Drift Report - {report_prefix}</title></head>
+    <head>
+        <meta charset="UTF-8">
+        <title>Data Drift Report - {report_prefix}</title>
+    </head>
     <body>
         <h1>⚙️ Data Drift Report — {report_prefix}</h1>
         <p><b>Date:</b> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
@@ -177,7 +183,7 @@ def detect_drift(current_df, reference_df, report_prefix, reports_path):
 # 🔥 MAIN PIPELINE
 # ===============================
 def main():
-    print("📊 Début du monitoring Data Drift...")
+    print(f"📊 Début du monitoring Data Drift... (seuil drift = {DRIFT_THRESHOLD:.0%})")
 
     processed_path = "data/processed"
     raw_path = "data/raw"
@@ -232,9 +238,8 @@ def main():
             mlflow.log_artifact(csv_report)
             mlflow.log_artifact(html_report)
 
-            # AUTO-UPDATE REFERENCE IF DRIFT > 30%
-            THRESHOLD = 0.30
-            if drift_rate > THRESHOLD:
+            # 👇 UPDATED: use the same DRIFT_THRESHOLD as retrain_if_drift.py
+            if drift_rate > DRIFT_THRESHOLD:
                 backup_path = reference_path.replace(
                     ".csv",
                     f"_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
@@ -242,13 +247,19 @@ def main():
                 shutil.copy(reference_path, backup_path)
                 current_df.to_csv(reference_path, index=False)
 
-                print(f"🔁 Mise à jour référence ({name}) car drift > 30%")
+                print(
+                    f"🔁 Mise à jour référence ({name}) "
+                    f"car drift {drift_rate:.1%} > seuil {DRIFT_THRESHOLD:.0%}"
+                )
                 print(f"📦 Ancienne référence sauvegardée : {backup_path}")
 
                 # NEW: uploader la nouvelle référence vers GCS
                 upload_reference_to_gcs(reference_path)
             else:
-                print(f"✅ Pas de drift majeur pour {name}")
+                print(
+                    f"✅ Pas de drift majeur pour {name} "
+                    f"(drift {drift_rate:.1%} ≤ seuil {DRIFT_THRESHOLD:.0%})"
+                )
 
     # SAVE SUMMARY FOR retrain_if_drift.py
     summary_path = os.path.join(reports_path, "drift_summary.json")
