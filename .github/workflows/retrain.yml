@@ -47,5 +47,5 @@ jobs:
 
       - name: Monitor drift & conditional retrain
         env:
-          DRIFT_THRESHOLD: "-1"
+          DRIFT_THRESHOLD: "0.3"
         run: python src/retrain_if_drift.py
