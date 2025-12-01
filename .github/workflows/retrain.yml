@@ -33,6 +33,8 @@ jobs:
         run: |
           echo "$GCP_SERVICE_ACCOUNT_KEY" > gcp-key.json
           dvc remote modify --local gcsremote credentialpath gcp-key.json
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$PWD/gcp-key.json" >> $GITHUB_ENV
+          echo "DRIFT_GCS_BUCKET=reference_drift" >> $GITHUB_ENV
 
       - name: Pull latest data & models
         run: dvc pull
@@ -45,5 +47,5 @@ jobs:
 
       - name: Monitor drift & conditional retrain
         env:
-          DRIFT_THRESHOLD: "0.00"
+          DRIFT_THRESHOLD: "0.30"
         run: python src/retrain_if_drift.py

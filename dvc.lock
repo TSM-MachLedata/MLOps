@@ -246,8 +246,8 @@ stages:
     outs:
     - path: data/raw/schedule_model2.csv
       hash: md5
-      md5: 9b92dad7325dff2716ac1be44e36a175
-      size: 842040
+      md5: 9e01a45c32c322b4b5fca17f89aa1ef5
+      size: 842060
   extract_player_stats_model2:
     cmd: python -m src.data_extraction.extract_player_stats
     deps:
@@ -258,8 +258,8 @@ stages:
     outs:
     - path: data/raw/player_season_stats_model2.csv
       hash: md5
-      md5: 979567df55a9eeaee26a3776682dabab
-      size: 1372856
+      md5: c5a92f836512ee1becc6fcffd4abc17f
+      size: 1377224
   extract_team_stats_model2:
     cmd: python -m src.data_extraction.extract_team_stats
     deps:

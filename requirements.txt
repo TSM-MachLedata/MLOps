@@ -26,3 +26,5 @@ pydantic
 # Utilities
 python-dotenv
 joblib
+google-cloud-storage
+

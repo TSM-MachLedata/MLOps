@@ -5,6 +5,75 @@ from scipy.stats import ks_2samp
 import mlflow
 from datetime import datetime
 import shutil
+from google.cloud import storage
+
+# Bucket where reference CSVs are stored (default = "reference_drift")
+DRIFT_GCS_BUCKET = os.getenv("DRIFT_GCS_BUCKET", "reference_drift")
+
+
+# ===============================
+# 🔥 GCS HELPERS FOR REFERENCES
+# ===============================
+def get_gcs_client():
+    """Return a GCS client or None if not available/misconfigured."""
+    if not DRIFT_GCS_BUCKET:
+        return None
+    try:
+        return storage.Client()
+    except Exception as e:
+        print(f"⚠️ Impossible de créer un client GCS : {e}")
+        return None
+
+
+def _gcs_blob_name(local_path: str) -> str:
+    """
+    Build the blob name in GCS from the local path.
+    We keep the relative path (e.g. data/processed/clean_matches_reference.csv)
+    at the root of the bucket (no prefix/folder).
+    """
+    rel_path = os.path.relpath(local_path).replace("\\", "/")
+    return rel_path
+
+
+def download_reference_from_gcs(local_path: str):
+    """
+    If a reference file exists in GCS, download it to local_path.
+    If not, do nothing.
+    """
+    client = get_gcs_client()
+    if client is None:
+        return
+
+    bucket = client.bucket(DRIFT_GCS_BUCKET)
+    blob_name = _gcs_blob_name(local_path)
+    blob = bucket.blob(blob_name)
+
+    if not blob.exists():
+        print(f"ℹ️ Aucune référence distante pour gs://{DRIFT_GCS_BUCKET}/{blob_name}")
+        return
+
+    os.makedirs(os.path.dirname(local_path), exist_ok=True)
+    blob.download_to_filename(local_path)
+    print(f"⬇️ Référence téléchargée depuis gs://{DRIFT_GCS_BUCKET}/{blob_name}")
+
+
+def upload_reference_to_gcs(local_path: str):
+    """
+    Upload the local reference file to GCS (overwriting the previous version).
+    """
+    if not os.path.exists(local_path):
+        print(f"⚠️ Impossible d’uploader, fichier introuvable : {local_path}")
+        return
+
+    client = get_gcs_client()
+    if client is None:
+        return
+
+    bucket = client.bucket(DRIFT_GCS_BUCKET)
+    blob_name = _gcs_blob_name(local_path)
+    blob = bucket.blob(blob_name)
+    blob.upload_from_filename(local_path)
+    print(f"⬆️ Référence uploadée vers gs://{DRIFT_GCS_BUCKET}/{blob_name}")
 
 
 # ===============================
@@ -104,7 +173,6 @@ def detect_drift(current_df, reference_df, report_prefix, reports_path):
     return drift_rate, csv_report_path, html_report_path
 
 
-
 # ===============================
 # 🔥 MAIN PIPELINE
 # ===============================
@@ -140,10 +208,15 @@ def main():
             current_df = pd.read_csv(current_path)
             reference_path = current_path.replace(".csv", "_reference.csv")
 
-            # FIRST RUN → CREATE REFERENCE
+            # NEW: essayer d'abord de récupérer la référence depuis GCS
+            download_reference_from_gcs(reference_path)
+
+            # FIRST RUN → CREATE REFERENCE (local + upload GCS)
             if not os.path.exists(reference_path):
                 current_df.to_csv(reference_path, index=False)
                 print(f"🆕 Référence créée : {reference_path}")
+                # NEW: upload vers GCS
+                upload_reference_to_gcs(reference_path)
                 continue
 
             reference_df = pd.read_csv(reference_path)
@@ -171,6 +244,9 @@ def main():
 
                 print(f"🔁 Mise à jour référence ({name}) car drift > 30%")
                 print(f"📦 Ancienne référence sauvegardée : {backup_path}")
+
+                # NEW: uploader la nouvelle référence vers GCS
+                upload_reference_to_gcs(reference_path)
             else:
                 print(f"✅ Pas de drift majeur pour {name}")
 
@@ -181,7 +257,6 @@ def main():
 
     print(f"\n📄 Résumé du drift enregistré dans {summary_path}")
     print("🎯 Monitoring terminé.")
-
 
 
 if __name__ == "__main__":
