@@ -15,6 +15,7 @@ beautifulsoup4
 dvc
 dvc-gs
 mlflow-skinny==2.22.2
+mlflow
 evidently
 
 # API and deployment
