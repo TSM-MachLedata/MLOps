@@ -1,59 +1,75 @@
 import pandas as pd
 from datetime import datetime
-from sklearn.preprocessing import MinMaxScaler
-
 
 def log(msg):
-    now = datetime.now().strftime("[%Y-%m-%d %H:%M:%S]")
-    print(f"{now}] {msg}")
+    print(f"[[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]] {msg}")
 
+def to_float(series):
+    """Convertit une série en float, remplace les valeurs non-numériques par 0."""
+    return pd.to_numeric(series, errors="coerce").fillna(0)
 
-def detect_numeric_cols(df):
-    """Detect valid numerical columns automatically."""
-    numeric_cols = []
-    for col in df.columns:
-        try:
-            pd.to_numeric(df[col], errors="raise")
-            numeric_cols.append(col)
-        except:
-            pass
-    return numeric_cols
-
-
-def compute_player_scores(df):
-    log("Computing scores...")
-
-    df = df.copy()
-    df = df.fillna(0)
-
-    # Detect numeric stats
-    numeric_cols = detect_numeric_cols(df)
-
-    # Simple numeric-based score: sum of normalized stats
-    scaler = MinMaxScaler()
-    df[numeric_cols] = scaler.fit_transform(df[numeric_cols])
-
-    df["player_score"] = df[numeric_cols].sum(axis=1)
-
-    return df[["team", "player", "pos", "player_score"]]
-
+def safe_get(df, col):
+    """Retourne la colonne si elle existe sinon retourne une série de 0."""
+    if col in df.columns:
+        return to_float(df[col])
+    print(f"⚠️ Missing column: {col}, using zeros.")
+    return pd.Series([0] * len(df))
 
 def main():
     log("Loading player stats...")
-
     df = pd.read_csv("data/raw/player_season_stats_model2.csv")
 
-    # Fix team names
-    log("Fixing team names...")
-    df["team"] = df["team"].astype(str).str.strip()
+    log("Extracting meaningful features...")
 
-    df_scores = compute_player_scores(df)
+    # === EXTRACTION SÉCURISÉE DES STATS FBREF ===
+    df["goals"]        = safe_get(df, "Performance")       # Gls
+    df["assists"]      = safe_get(df, "Performance.1")     # Ast
+    df["yellow_cards"] = safe_get(df, "Performance.6")     # CrdY
+    df["red_cards"]    = safe_get(df, "Performance.7")     # CrdR
 
-    out_path = "data/processed/player_strengths.csv"
-    df_scores.to_csv(out_path, index=False)
+    df["xG"]           = safe_get(df, "Expected")          # xG
+    df["xAG"]          = safe_get(df, "Expected.2")        # xAG
+    df["minutes"]      = safe_get(df, "Playing Time.2")    # Min
 
-    log(f"Saved → {out_path}")
+    df["goals_per90"]   = safe_get(df, "Per 90 Minutes")      # Gls/90
+    df["assists_per90"] = safe_get(df, "Per 90 Minutes.1")    # Ast/90
+    df["xG_per90"]      = safe_get(df, "Per 90 Minutes.5")    # xG/90
 
+    # === CALCUL SCORE JOUEUR ===
+    df["player_score"] = (
+        df["goals"] * 4 +
+        df["assists"] * 3 +
+        df["xG"] * 1.5 +
+        df["xAG"] * 1.2 +
+        df["goals_per90"] * 2 +
+        df["assists_per90"] * 1.5 +
+        df["xG_per90"] * 1 -
+        df["yellow_cards"] * 0.5 -
+        df["red_cards"] * 2
+    )
+
+    # Nettoyage : garder seulement joueurs valides
+    df = df[df["team"].notna() & df["player"].notna()]
+
+    # === FORCE : aucun score = 0 systématique n'est possible maintenant ===
+    df["player_score"] = df["player_score"].fillna(0)
+
+    # === MOYENNE PAR ÉQUIPE ===
+    log("Computing team strengths...")
+
+    team_strengths = (
+        df.groupby("team")["player_score"]
+        .mean()
+        .reset_index()
+        .rename(columns={"player_score": "team_strength"})
+    )
+
+    # === SAUVEGARDE ===
+    df.to_csv("data/processed/player_strengths.csv", index=False)
+    team_strengths.to_csv("data/processed/team_strengths.csv", index=False)
+
+    log("Saved → data/processed/player_strengths.csv")
+    log("Saved → data/processed/team_strengths.csv")
 
 if __name__ == "__main__":
     main()
