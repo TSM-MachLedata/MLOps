@@ -36,7 +36,6 @@ jobs:
       - name: Refresh raw & processed data via DVC (best effort)
         run: |
           echo "🔄 Refreshing main raw data via football-data (fetch_data + preprocess)..."
-          dvc repro --force fetch_data
           dvc repro --force preprocess
 
           echo "🔄 Trying to refresh soccerdata / FBref-based stages (best effort)..."
