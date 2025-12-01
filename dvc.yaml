@@ -8,6 +8,7 @@ stages:
     outs:
       - data/raw/schedule_multi_leagues.csv
       - data/raw/team_stats_multi_leagues.csv
+    frozen: true 
 
   preprocess:
     cmd: python src/preprocess.py
@@ -46,6 +47,7 @@ stages:
       - src/data_extraction/extract_matches.py
     outs:
       - data/raw/schedule_model2.csv
+    frozen: true 
 
   extract_player_stats_model2:
     cmd: python -m src.data_extraction.extract_player_stats
@@ -53,6 +55,7 @@ stages:
       - src/data_extraction/extract_player_stats.py
     outs:
       - data/raw/player_season_stats_model2.csv
+    frozen: true 
 
   extract_team_stats_model2:
     cmd: python -m src.data_extraction.extract_team_stats
@@ -61,6 +64,7 @@ stages:
     outs:
       - data/raw/team_match_stats_model2.csv
       - data/raw/team_season_stats_model2.csv
+    frozen: true
 
   # MODEL 2 PREPROCESS & TRAIN
   build_team_name_mapping:
