@@ -14,8 +14,8 @@ beautifulsoup4
 # MLOps tools
 dvc
 dvc-gs
-mlflow-skinny==2.22.2
-mlflow
+mlflow==2.22.2
+dagshub
 evidently
 
 # API and deployment
