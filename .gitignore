@@ -40,9 +40,9 @@ notebooks/
 
 # DVC
 # DO NOT ignore the whole .dvc directory – we need .dvc/config in git
-#.dvc/cache/
-#.dvc/tmp/
-#.dvc/config.local
+.dvc/cache/
+.dvc/tmp/
+.dvc/config.local
 
 # Docker and build
 *.dockerfile
@@ -61,8 +61,3 @@ reports/
 # Legacy duplicates (cleanup)
 #/models
 #/reports
-
-# Garder les fichiers de suivi DVC
-!*.dvc
-!**/.gitignore
-
