@@ -183,6 +183,8 @@ def detect_drift(current_df, reference_df, report_prefix, reports_path):
 # 🔥 MAIN PIPELINE
 # ===============================
 def main():
+    print(f"[DEBUG monitor_drift] DRIFT_THRESHOLD={DRIFT_THRESHOLD}")
+    print(f"📊 Début du monitoring Data Drift... (seuil drift = {DRIFT_THRESHOLD:.0%})")
     print(f"📊 Début du monitoring Data Drift... (seuil drift = {DRIFT_THRESHOLD:.0%})")
 
     processed_path = "data/processed"
