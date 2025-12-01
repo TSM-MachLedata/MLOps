@@ -33,23 +33,6 @@ jobs:
       - name: Pull latest data & models
         run: dvc pull
 
-      - name: Refresh raw & processed data via DVC (best effort)
-        run: |
-          echo "🔄 Refreshing main raw data via football-data (fetch_data + preprocess)..."
-          dvc repro --force preprocess
-
-          echo "🔄 Trying to refresh soccerdata / FBref-based stages (best effort)..."
-          dvc repro --force extract_matches_model2       || echo "⚠️ extract_matches_model2 failed, keeping previous data from dvc pull"
-          dvc repro --force extract_player_stats_model2  || echo "⚠️ extract_player_stats_model2 failed, keeping previous data from dvc pull"
-          dvc repro --force extract_team_stats_model2    || echo "⚠️ extract_team_stats_model2 failed, keeping previous data from dvc pull"
-          dvc repro --force preprocess_model2            || echo "⚠️ preprocess_model2 failed, keeping previous data from dvc pull"
-          dvc repro --force build_player_strengths       || echo "⚠️ build_player_strengths failed, keeping previous data from dvc pull"
-
-          echo "☁️ Pushing any successfully updated data/models to remote..."
-          dvc push || echo "⚠️ dvc push failed, but workflow will continue"
-
-
-
       - name: Monitor drift & conditional retrain
         env:
           DRIFT_THRESHOLD: "0.30"
