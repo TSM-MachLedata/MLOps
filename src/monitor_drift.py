@@ -213,7 +213,15 @@ def main():
                 print(f"❌ Fichier manquant : {current_path}")
                 continue
 
+            # ============================
+            # 🔥 LOAD CURRENT + CONVERT TO NUMERIC
+            # ============================
             current_df = pd.read_csv(current_path)
+
+            # Convert all possible columns to numeric
+            for col in current_df.columns:
+                current_df[col] = pd.to_numeric(current_df[col], errors="ignore")
+
             reference_path = current_path.replace(".csv", "_reference.csv")
 
             # NEW: essayer d'abord de récupérer la référence depuis GCS
@@ -227,8 +235,15 @@ def main():
                 upload_reference_to_gcs(reference_path)
                 continue
 
+            # ============================
+            # 🔥 LOAD REFERENCE + CONVERT TO NUMERIC
+            # ============================
             reference_df = pd.read_csv(reference_path)
 
+            for col in reference_df.columns:
+                reference_df[col] = pd.to_numeric(reference_df[col], errors="ignore")
+
+            # Run drift detection
             result = detect_drift(current_df, reference_df, name, reports_path)
             if result is None:
                 continue
