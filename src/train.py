@@ -138,8 +138,11 @@ def main():
         os.makedirs("app/models", exist_ok=True)
         home_model_path = "app/models/home_model.json"
         away_model_path = "app/models/away_model.json"
+        model_home._estimator_type = "regressor"
+        model_away._estimator_type = "regressor"
         model_home.save_model(home_model_path)
         model_away.save_model(away_model_path)
+
 
         # log artifacts dans MLflow (modèles + dataset d'entraînement)
         mlflow.log_artifact(home_model_path)
