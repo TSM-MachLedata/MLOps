@@ -174,16 +174,16 @@ def main():
     print(f"  mae_away:  {mae_away:.4f}")
     print(f"  r2_away:   {r2_away:.4f}")
 
-# === SAVE ARTIFACTS (model + dataset) ===
-os.makedirs("models", exist_ok=True)
-
-model_path = "models/model2_xgb.json"
-
-# Workaround for XGBoost sklearn save_model metadata bug in CI
-model._estimator_type = "classifier"
-
-model.save_model(model_path)
-log(f"Saved model → {model_path}")
+    # === SAVE ARTIFACTS (model + dataset) ===
+    os.makedirs("models", exist_ok=True)
+    
+    model_path = "models/model2_xgb.json"
+    
+    # Workaround for XGBoost sklearn save_model metadata bug in CI
+    model._estimator_type = "classifier"
+    
+    model.save_model(model_path)
+    log(f"Saved model → {model_path}")
 
 
     # 💾 Sauvegarde JSON pour comparaison de modèles
