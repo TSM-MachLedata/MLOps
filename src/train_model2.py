@@ -176,17 +176,18 @@ def main():
 
     # === SAVE ARTIFACTS (model + dataset) ===
     os.makedirs("models", exist_ok=True)
-    
     model_path = "models/model2_xgb.json"
-    
-    # Workaround for XGBoost sklearn save_model metadata bug in CI
+
     model._estimator_type = "classifier"
-    
     model.save_model(model_path)
     log(f"Saved model → {model_path}")
 
+    os.makedirs("data/processed", exist_ok=True)
+    dataset_path = "data/processed/model2_training_dataset.csv"
+    df.to_csv(dataset_path, index=False)
+    log(f"Saved dataset → {dataset_path}")
 
-    # 💾 Sauvegarde JSON pour comparaison de modèles
+    # 💾 metrics JSON
     metrics = {
         "accuracy": float(accuracy),
         "f1_macro": float(f1),
@@ -204,7 +205,7 @@ def main():
         json.dump(metrics, f, indent=2)
     log(f"Saved metrics JSON → {metrics_path}")
 
-    # === LOG TO MLFLOW === ✅
+    # === LOG TO MLFLOW ===
     mlflow.set_experiment("football_prediction_mlops")
     with mlflow.start_run(run_name="model2_xgb_classifier"):
         mlflow.set_tag("model_name", "model2")
@@ -217,9 +218,8 @@ def main():
         mlflow.log_param("max_depth", 6)
         mlflow.log_param("learning_rate", 0.05)
 
-        # log artifacts
-        mlflow.log_artifact("models/model2_xgb.json")
-        mlflow.log_artifact("data/processed/model2_training_dataset.csv")
+        mlflow.log_artifact(model_path)
+        mlflow.log_artifact(dataset_path)
         mlflow.log_artifact(metrics_path)
 
 
