@@ -69,7 +69,12 @@ def main():
     # ----------------------------------------------------
     log("Loading base model (model2_xgb)...")
     model = xgb.XGBClassifier()
+    
+    # Workaround for XGBoost sklearn load_model metadata bug in CI
+    model._estimator_type = "classifier"
+    
     model.load_model(MODEL_PATH)
+
 
     log("Loading training dataset (model2_training_dataset.csv)...")
     df_base = pd.read_csv(TRAIN_SET_PATH)
@@ -177,7 +182,7 @@ def main():
     print(f"R2 Away  : {r2_away:.4f}")
     print("=============================================================\n")
 
-        # ----------------------------------------------------
+    # ----------------------------------------------------
     # 6. Sauvegarde JSON pour comparaison de modèles
     # ----------------------------------------------------
     metrics = {
