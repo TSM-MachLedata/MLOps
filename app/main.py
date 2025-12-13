@@ -57,7 +57,7 @@ try:
         CHAMPION_KEY = CHAMPION_KEY or "model2"
 except Exception as e:
     print("⚠️ [app.main] Error loading champion_config.json:", e)
-    traceback.print_exc()
+    print(traceback.format_exc())
     CHAMPION_KEY = CHAMPION_KEY or "model2"
 
 print(f"🏆 Loaded champion key: {CHAMPION_KEY}")
@@ -71,16 +71,17 @@ def with_champion_tag(base_key: str) -> str:
 # Artifacts (globals)
 # -------------------------------------------------
 
-model2_clf: Optional[xgb.XGBClassifier] = None
+# ✅ Use raw Booster objects in serving (more robust than sklearn wrappers)
+model2_booster: Optional[xgb.Booster] = None
+home_booster: Optional[xgb.Booster] = None
+away_booster: Optional[xgb.Booster] = None
+
 MODEL2_TEAMS: List[str] = []
-MODEL2_TEAM_STATS: Dict[str, Dict[str, float]] = {}  # <== NEW dict instead of df
+MODEL2_TEAM_STATS: Dict[str, Dict[str, float]] = {}  # dict instead of df
 
 player_strengths_df: Optional[pd.DataFrame] = None
 team_stats_df: Optional[pd.DataFrame] = None
 match_stats_df: Optional[pd.DataFrame] = None
-
-home_reg: Optional[xgb.XGBRegressor] = None
-away_reg: Optional[xgb.XGBRegressor] = None
 
 PLAYER_TEAMS: List[str] = []
 MODEL1_TEAMS: List[str] = []  # based on team_stats_multi_leagues.csv
@@ -105,7 +106,21 @@ def _build_lookup(names: List[str]) -> Dict[str, str]:
 
 
 # -------------------------------------------------
-# Model 2 artifacts (streaming, low-memory)
+# MODEL 2: Load model (Booster) - separate from CSV parsing
+# -------------------------------------------------
+try:
+    print("[BOOT] Loading model2 booster (models/model2_xgb.json) ...")
+    model2_booster = xgb.Booster()
+    model2_booster.load_model("models/model2_xgb.json")
+    print("✅ Loaded model2 booster.")
+except Exception as e:
+    model2_booster = None
+    print(f"⚠️ Could not load model2 booster: {e}")
+    print(traceback.format_exc())
+
+
+# -------------------------------------------------
+# MODEL 2: Load team stats dict from training dataset (separate try)
 # -------------------------------------------------
 try:
     print("[BOOT] CWD:", os.getcwd())
@@ -115,11 +130,6 @@ try:
         print("models         ->", os.listdir("models"))
     except Exception as e:
         print("[BOOT] Could not list folders:", e)
-
-    print("[BOOT] Loading model2_xgb.json ...")
-    model2_clf = xgb.XGBClassifier()
-    model2_clf.load_model("models/model2_xgb.json")
-    print("✅ Loaded model2_xgb.json")
 
     csv_path = "data/processed/model2_training_dataset.csv"
     print(f"[BOOT] Streaming team stats from {csv_path} ...")
@@ -174,12 +184,15 @@ try:
     MODEL2_TEAM_LOOKUP = _build_lookup(MODEL2_TEAMS)
     print(f"✅ Built in-memory team stats for model2. {len(MODEL2_TEAMS)} teams.")
 except Exception as e:
-    print(f"⚠️ Could not load model2 artifacts: {e}")
-    traceback.print_exc()
+    MODEL2_TEAM_STATS = {}
+    MODEL2_TEAMS = []
+    MODEL2_TEAM_LOOKUP = {}
+    print(f"⚠️ Could not load model2 team stats from CSV: {e}")
+    print(traceback.format_exc())
 
 
 # -------------------------------------------------
-# Player-mode + team stats artifacts (model3 + model1)
+# Player-mode + team stats artifacts (model3 + model1 features)
 # -------------------------------------------------
 try:
     # player strengths → only what's needed
@@ -238,27 +251,29 @@ try:
     )
 except Exception as e:
     print(f"⚠️ Could not load player-mode / team-stats artifacts: {e}")
-    traceback.print_exc()
+    print(traceback.format_exc())
 
 
 # -------------------------------------------------
-# Model 1 regression (home/away goals)
+# MODEL 1 regression (home/away goals) — Booster load
 # -------------------------------------------------
 try:
-    home_reg = xgb.XGBRegressor()
-    away_reg = xgb.XGBRegressor()
-    home_reg.load_model("app/models/home_model.json")
-    away_reg.load_model("app/models/away_model.json")
-    print("✅ Loaded model1 regression models.")
+    print("[BOOT] Loading model1 boosters (app/models/home_model.json, away_model.json) ...")
+    home_booster = xgb.Booster()
+    away_booster = xgb.Booster()
+    home_booster.load_model("app/models/home_model.json")
+    away_booster.load_model("app/models/away_model.json")
+    print("✅ Loaded model1 boosters.")
 except Exception as e:
-    print(f"⚠️ Could not load model1 regression models: {e}")
-    traceback.print_exc()
+    home_booster = None
+    away_booster = None
+    print(f"⚠️ Could not load model1 boosters: {e}")
+    print(traceback.format_exc())
 
 
 # -------------------------------------------------
 # Pydantic schemas
 # -------------------------------------------------
-
 class TeamRequest(BaseModel):
     home_team: str
     away_team: str
@@ -274,7 +289,6 @@ class PlayerMatchRequest(BaseModel):
 # -------------------------------------------------
 # Helpers
 # -------------------------------------------------
-
 def validate_team_exists(team: str, context: str = "model2") -> str:
     """
     Check that a team exists in the appropriate list, case-insensitive.
@@ -308,10 +322,24 @@ def validate_team_exists(team: str, context: str = "model2") -> str:
     return canonical
 
 
+def _predict_proba_model2(X: pd.DataFrame) -> List[float]:
+    """Predict class probabilities for model2 using Booster (softprob)."""
+    if model2_booster is None:
+        raise HTTPException(status_code=500, detail="Model2 booster not loaded.")
+
+    dm = xgb.DMatrix(X)
+    proba = model2_booster.predict(dm)
+
+    # proba can be shape (1, 3) for single row
+    if hasattr(proba, "shape") and len(proba.shape) == 2:
+        return [float(p) for p in proba[0]]
+    # fallback (shouldn't happen for softprob with 1 row, but just in case)
+    return [float(p) for p in proba]
+
+
 # -------------------------------------------------
 # MODEL 1 feature builder (regression)
 # -------------------------------------------------
-
 def build_features_model1(home_team: str, away_team: str) -> pd.DataFrame:
     """
     Build numeric features for model1 from team_stats_multi_leagues.csv
@@ -364,7 +392,6 @@ def build_features_model1(home_team: str, away_team: str) -> pd.DataFrame:
 # -------------------------------------------------
 # MODEL 2 helpers (dict-based stats)
 # -------------------------------------------------
-
 def _get_team_stat(team: str, *keys: str) -> float:
     """Return first available stat for team among given keys, else 0.0."""
     stats = MODEL2_TEAM_STATS.get(team, {})
@@ -444,7 +471,6 @@ def build_features_model2(home_team: str, away_team: str) -> pd.DataFrame:
 # -------------------------------------------------
 # Player-mode helpers (MODEL 3)
 # -------------------------------------------------
-
 def compute_team_strength(team: str, players: List[str]) -> float:
     """Compute mean player_score for exactly 11 valid, unique players of a team (case-insensitive)."""
     if player_strengths_df is None:
@@ -568,7 +594,6 @@ def build_features_player_mode(
 # -------------------------------------------------
 # Endpoints
 # -------------------------------------------------
-
 @app.get("/info/champion")
 def get_champion_info():
     return {
@@ -578,20 +603,20 @@ def get_champion_info():
 
 
 # ---------- MODEL 1: regression on goals -------------------------------
-
 @app.post("/predict/model1")
 def predict_model1(req: TeamRequest):
     """
     Predict home & away goals with model1 (regression) + match result,
     using only home_team / away_team (features built from team_stats).
     """
-    if home_reg is None or away_reg is None:
-        raise HTTPException(status_code=500, detail="Model1 regression models not loaded.")
+    if home_booster is None or away_booster is None:
+        raise HTTPException(status_code=500, detail="Model1 boosters not loaded.")
 
     X, home_team_canon, away_team_canon = build_features_model1(req.home_team, req.away_team)
 
-    pred_home = float(home_reg.predict(X)[0])
-    pred_away = float(away_reg.predict(X)[0])
+    dm = xgb.DMatrix(X)
+    pred_home = float(home_booster.predict(dm)[0])
+    pred_away = float(away_booster.predict(dm)[0])
 
     if pred_home > pred_away:
         result = f"{home_team_canon} WIN"
@@ -612,15 +637,11 @@ def predict_model1(req: TeamRequest):
 
 
 # ---------- MODEL 2: team-level classifier -----------------------------
-
 @app.post("/predict/model2")
 def predict_model2(req: TeamRequest):
-    if model2_clf is None:
-        raise HTTPException(status_code=500, detail="Model2 classifier not loaded.")
-
     X, home_team_canon, away_team_canon = build_features_model2(req.home_team, req.away_team)
-    proba = model2_clf.predict_proba(X)[0]
-    pred_class = int(proba.argmax())
+    proba = _predict_proba_model2(X)
+    pred_class = int(max(range(len(proba)), key=lambda i: proba[i]))
 
     mapping = {
         0: f"{away_team_canon} WIN",
@@ -641,18 +662,17 @@ def predict_model2(req: TeamRequest):
 
 
 # ---------- MODEL 3: player-mode classifier ----------------------------
-
 @app.post("/predict/model3")
 def predict_player_mode(req: PlayerMatchRequest):
-    if model2_clf is None:
-        raise HTTPException(status_code=500, detail="Base classifier not loaded.")
+    if model2_booster is None:
+        raise HTTPException(status_code=500, detail="Base booster not loaded.")
 
     home_strength = compute_team_strength(req.home_team, req.home_players)
     away_strength = compute_team_strength(req.away_team, req.away_players)
 
     X = build_features_player_mode(req.home_team, req.away_team, home_strength, away_strength)
-    proba = model2_clf.predict_proba(X)[0]
-    pred_class = int(proba.argmax())
+    proba = _predict_proba_model2(X)
+    pred_class = int(max(range(len(proba)), key=lambda i: proba[i]))
 
     mapping = {
         0: f"{req.away_team} WIN",
