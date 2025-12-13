@@ -42,7 +42,9 @@ jobs:
           dvc remote modify --local gcsremote credentialpath gcp-key.json
 
       - name: Pull data, models & champion config
-        run: dvc pull
+        run: |
+          dvc config cache.type copy --local
+          dvc pull
 
       - name: Debug list data and models
         run: |
