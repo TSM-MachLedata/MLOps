@@ -14,8 +14,8 @@ __pycache__
 *.pyd
 
 # DVC internals (cache + tmp), not needed in the container
-.dvc
-.dvc/cache
+# .dvc
+# .dvc/cache
 .dvc/tmp
 .dvcignore
 
