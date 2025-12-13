@@ -3,9 +3,6 @@
 .github
 .gitignore
 
-# DVC cache (keep actual data files!)
-.dvc/cache
-
 # Python junk
 __pycache__/
 *.py[cod]
