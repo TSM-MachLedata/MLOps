@@ -101,7 +101,7 @@ def upload_reference_to_gcs(local_path: str):
         blob.upload_from_filename(local_path)
         log(f" Référence uploadée vers gs://{DRIFT_GCS_BUCKET}/{blob_name}")
     except Exception as e:  # pragma: no cover
-        log(f"⚠️ Échec upload GCS : {e}")
+        log(f" Échec upload GCS : {e}")
 
 
 
