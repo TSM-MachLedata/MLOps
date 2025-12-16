@@ -13,9 +13,9 @@ try:
 except Exception:  # pragma: no cover
     storage = None
 
-# =========================
+
 # CONFIG (env-friendly)
-# =========================
+
 
 DRIFT_GCS_BUCKET = os.getenv("DRIFT_GCS_BUCKET", "reference_drift")
 DRIFT_THRESHOLD = float(os.getenv("DRIFT_THRESHOLD", "0.30"))
@@ -27,16 +27,16 @@ RAW_PATH = os.getenv("DRIFT_RAW_PATH", "data/raw")
 
 os.makedirs(REPORTS_PATH, exist_ok=True)
 
-# =========================
+
 # LOGGING
-# =========================
+
 
 def log(msg: str):
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {msg}")
 
-# ===============================
+
 # GCS HELPERS FOR REFERENCES
-# ===============================
+
 
 def get_gcs_client():
     """Return a GCS client or None if not available/misconfigured."""
@@ -71,22 +71,22 @@ def download_reference_from_gcs(local_path: str):
     try:
         exists = blob.exists()
     except Exception as e:  # pragma: no cover
-        log(f"⚠️ Erreur vérification existence GCS : {e}")
+        log(f" Erreur vérification existence GCS : {e}")
         return
 
     if not exists:
-        log(f"ℹ️ Aucune référence distante pour gs://{DRIFT_GCS_BUCKET}/{blob_name}")
+        log(f" Aucune référence distante pour gs://{DRIFT_GCS_BUCKET}/{blob_name}")
         return
 
     os.makedirs(os.path.dirname(local_path), exist_ok=True)
     blob.download_to_filename(local_path)
-    log(f"⬇️ Référence téléchargée depuis gs://{DRIFT_GCS_BUCKET}/{blob_name}")
+    log(f" Référence téléchargée depuis gs://{DRIFT_GCS_BUCKET}/{blob_name}")
 
 
 def upload_reference_to_gcs(local_path: str):
     """Upload the local reference file to GCS (overwriting existing)."""
     if not os.path.exists(local_path):
-        log(f"⚠️ Impossible d’uploader, fichier introuvable : {local_path}")
+        log(f" Impossible d’uploader, fichier introuvable : {local_path}")
         return
 
     client = get_gcs_client()
@@ -99,14 +99,14 @@ def upload_reference_to_gcs(local_path: str):
 
     try:
         blob.upload_from_filename(local_path)
-        log(f"⬆️ Référence uploadée vers gs://{DRIFT_GCS_BUCKET}/{blob_name}")
+        log(f" Référence uploadée vers gs://{DRIFT_GCS_BUCKET}/{blob_name}")
     except Exception as e:  # pragma: no cover
         log(f"⚠️ Échec upload GCS : {e}")
 
 
-# =========================
+
 # FEATURE SELECTION (fallback)
-# =========================
+
 
 def get_numeric_features(df: pd.DataFrame, dataset_name: str) -> List[str]:
     """Return a cleaned list of numeric features for drift detection."""
@@ -116,22 +116,21 @@ def get_numeric_features(df: pd.DataFrame, dataset_name: str) -> List[str]:
     exclude_cols = [
         "player", "player_name", "team", "team_name",
         "id", "match_id", "player_id",
-        "date"  # avoid accidental use in numeric scan
+        "date" 
     ]
 
     numeric_cols = [c for c in numeric_cols if c not in exclude_cols]
 
     if not numeric_cols:
-        log(f"⚠️ Aucun feature numérique utile trouvé pour {dataset_name}")
+        log(f" Aucun feature numérique utile trouvé pour {dataset_name}")
         return []
 
-    log(f"👉 {dataset_name} : {len(numeric_cols)} features auto → {numeric_cols}")
+    log(f" {dataset_name} : {len(numeric_cols)} features auto → {numeric_cols}")
     return numeric_cols
 
 
-# =========================
 # KS DRIFT CORE
-# =========================
+
 
 def run_ks_drift(
     ref_df: pd.DataFrame,
@@ -171,9 +170,9 @@ def run_ks_drift(
     return drift_rate, report_df
 
 
-# =========================
+
 # REPORTING
-# =========================
+
 
 def save_reports(name: str, report_df: pd.DataFrame) -> Tuple[str, str]:
     """Save CSV + HTML drift report and return their paths."""
@@ -199,7 +198,7 @@ def save_reports(name: str, report_df: pd.DataFrame) -> Tuple[str, str]:
         </style>
     </head>
     <body>
-        <h1>⚙️ Data Drift Report — {name}</h1>
+        <h1> Data Drift Report — {name}</h1>
         <p><b>Date:</b> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
         <p><b>Total tested features:</b> {total}</p>
         <p><b>Drift detected:</b> {drift_count} ({drift_rate:.1%})</p>
@@ -215,9 +214,9 @@ def save_reports(name: str, report_df: pd.DataFrame) -> Tuple[str, str]:
     return csv_path, html_path
 
 
-# =========================
+
 # WINDOW EXTRACTORS
-# =========================
+
 
 def window_full(df: pd.DataFrame, _: Dict) -> pd.DataFrame:
     return df
@@ -246,9 +245,9 @@ def window_tail(df: pd.DataFrame, meta: Dict) -> pd.DataFrame:
     return df.tail(n)
 
 
-# =========================
+
 # DATASET CONFIG
-# =========================
+
 
 DatasetConfig = Dict[str, object]
 
@@ -300,9 +299,8 @@ DATASETS: Dict[str, DatasetConfig] = {
 }
 
 
-# =========================
 # SINGLE DATASET MONITOR
-# =========================
+
 
 def monitor_dataset(name: str, cfg: DatasetConfig) -> Optional[float]:
     current_path = str(cfg["current_path"])
@@ -311,10 +309,10 @@ def monitor_dataset(name: str, cfg: DatasetConfig) -> Optional[float]:
     meta: Dict = cfg.get("meta", {})  # type: ignore
 
     if not os.path.exists(current_path):
-        log(f"❌ Fichier manquant : {current_path}")
+        log(f" Fichier manquant : {current_path}")
         return None
 
-    log(f"\n🔍 Vérification du drift pour : {name}")
+    log(f"\n Vérification du drift pour : {name}")
 
     # Load current
     # Parse dates only when likely needed
@@ -342,7 +340,7 @@ def monitor_dataset(name: str, cfg: DatasetConfig) -> Optional[float]:
         features = list(features_cfg)  # type: ignore
 
     if not features:
-        log(f"⚠️ Aucune feature à tester pour {name}")
+        log(f" Aucune feature à tester pour {name}")
         return None
 
     # Try to fetch reference from GCS first
@@ -352,7 +350,7 @@ def monitor_dataset(name: str, cfg: DatasetConfig) -> Optional[float]:
     if not os.path.exists(reference_path):
         os.makedirs(os.path.dirname(reference_path), exist_ok=True)
         current_window[features].to_csv(reference_path, index=False)
-        log(f"🆕 Référence créée : {reference_path}")
+        log(f" Référence créée : {reference_path}")
         upload_reference_to_gcs(reference_path)
         return None
 
@@ -363,13 +361,13 @@ def monitor_dataset(name: str, cfg: DatasetConfig) -> Optional[float]:
     # (Avoids schema noise over time)
     missing = [f for f in features if f not in reference_df.columns]
     if missing:
-        log(f"⚠️ Référence {name} ne contient pas toutes les features : {missing}")
+        log(f" Référence {name} ne contient pas toutes les features : {missing}")
 
     # Align frames on features that exist in both
     common_features = [f for f in features if f in reference_df.columns and f in current_window.columns]
 
     if not common_features:
-        log(f"⚠️ Aucune feature commune pour {name}")
+        log(f" Aucune feature commune pour {name}")
         return None
 
     # Run KS
@@ -383,7 +381,7 @@ def monitor_dataset(name: str, cfg: DatasetConfig) -> Optional[float]:
     mlflow.log_artifact(csv_path)
     mlflow.log_artifact(html_path)
 
-    log(f"📊 {name} drift = {drift_rate:.1%} ({int(report_df.get('drift_detected', pd.Series(dtype=bool)).sum())}/{len(report_df)} features)")
+    log(f" {name} drift = {drift_rate:.1%} ({int(report_df.get('drift_detected', pd.Series(dtype=bool)).sum())}/{len(report_df)} features)")
 
     # Update reference if above threshold
     if drift_rate > DRIFT_THRESHOLD:
@@ -398,21 +396,21 @@ def monitor_dataset(name: str, cfg: DatasetConfig) -> Optional[float]:
         current_window[common_features].to_csv(reference_path, index=False)
 
         log(
-            f"🔁 Mise à jour référence ({name}) "
+            f" Mise à jour référence ({name}) "
             f"car drift {drift_rate:.1%} > seuil {DRIFT_THRESHOLD:.0%}"
         )
-        log(f"📦 Ancienne référence sauvegardée : {backup_path}")
+        log(f" Ancienne référence sauvegardée : {backup_path}")
 
         upload_reference_to_gcs(reference_path)
     else:
-        log(f"✅ Pas de drift majeur pour {name} (≤ {DRIFT_THRESHOLD:.0%})")
+        log(f" Pas de drift majeur pour {name} (≤ {DRIFT_THRESHOLD:.0%})")
 
     return drift_rate
 
 
-# =========================
+
 # MAIN
-# =========================
+
 
 def main():
     log(f"DRIFT MONITORING — seuil = {DRIFT_THRESHOLD:.0%} | fenêtre récente = {RECENT_DAYS} jours")
@@ -428,7 +426,7 @@ def main():
                 if rate is not None:
                     drift_rates[name] = rate
             except Exception as e:
-                log(f"⚠️ Erreur monitoring {name} : {e}")
+                log(f" Erreur monitoring {name} : {e}")
 
         # Save and log summary JSON for retraining pipelines
         summary_path = os.path.join(REPORTS_PATH, "drift_summary.json")
@@ -436,9 +434,9 @@ def main():
             json.dump(drift_rates, f, indent=2)
 
         mlflow.log_artifact(summary_path)
-        log(f"📄 Résumé du drift enregistré dans {summary_path}")
+        log(f" Résumé du drift enregistré dans {summary_path}")
 
-    log("🎯 Monitoring terminé.")
+    log(" Monitoring terminé.")
 
 
 if __name__ == "__main__":

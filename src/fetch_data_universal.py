@@ -7,9 +7,9 @@ from datetime import datetime
 from pathlib import Path
 from io import StringIO
 
-# ===============================
+
 # CONFIGURATION
-# ===============================
+
 RAW_PATH = Path("data/raw")
 RAW_PATH.mkdir(parents=True, exist_ok=True)
 
@@ -55,17 +55,17 @@ def safe_download(url):
             return r.text
         except Exception as e:
             wait = 1.5 ** attempt + random.random()
-            print(f"  ⚠️ Tentative {attempt}/4 échouée ({e}) — retry dans {wait:.1f}s")
+            print(f"   Tentative {attempt}/4 échouée ({e}) — retry dans {wait:.1f}s")
             time.sleep(wait)
     return None
 
-# ===============================
+
 # LECTURE CSV
-# ===============================
+
 def fetch_league_data(league_name, code, season):
     """Télécharge un CSV pour une ligue et saison donnée."""
     url = f"{BASE_URL}/{season}/{code}.csv"
-    print(f"🌍 {league_name} ({season}) — {url}")
+    print(f" {league_name} ({season}) — {url}")
     csv_text = safe_download(url)
     if not csv_text:
         return pd.DataFrame()
@@ -90,17 +90,17 @@ def fetch_league_data(league_name, code, season):
     df["season"] = season
     return df[["date", "homeTeam", "awayTeam", "homeScore", "awayScore", "league", "season"]]
 
-# ===============================
+
 # MAIN
-# ===============================
+
 def main():
-    print("⚽ Début collecte Football-Data —", datetime.now().isoformat())
+    print(" Début collecte Football-Data —", datetime.now().isoformat())
 
     all_matches = []
     all_stats = []
 
     seasons = get_all_seasons()
-    print(f"📅 Saisons ciblées: {len(seasons)} ({seasons[0]} → {seasons[-1]})")
+    print(f" Saisons ciblées: {len(seasons)} ({seasons[0]} → {seasons[-1]})")
 
     for league_name, code in LEAGUES.items():
         for season in seasons:
@@ -140,18 +140,18 @@ def main():
     if all_matches:
         full_matches = pd.concat(all_matches, ignore_index=True)
         full_matches.to_csv(RAW_PATH / "schedule_multi_leagues.csv", index=False)
-        print(f"✅ Matchs sauvegardés : {len(full_matches)} lignes")
+        print(f" Matchs sauvegardés : {len(full_matches)} lignes")
     else:
-        print("⚠️ Aucun match trouvé")
+        print(" Aucun match trouvé")
 
     if all_stats:
         full_stats = pd.concat(all_stats, ignore_index=True)
         full_stats.to_csv(RAW_PATH / "team_stats_multi_leagues.csv", index=False)
-        print(f"✅ Statistiques sauvegardées : {len(full_stats)} lignes")
+        print(f" Statistiques sauvegardées : {len(full_stats)} lignes")
     else:
-        print("⚠️ Aucune statistique générée")
+        print(" Aucune statistique générée")
 
-    print("\n🎯 Collecte terminée —", datetime.now().isoformat())
+    print("\n Collecte terminée —", datetime.now().isoformat())
 
 
 if __name__ == "__main__":

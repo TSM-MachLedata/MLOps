@@ -52,9 +52,9 @@ def build_xi_strengths(players_df: pd.DataFrame, top_n: int = 11) -> pd.DataFram
 
 
 def main():
-    # ----------------------------------------------------
+    
     # 0. Sanity checks
-    # ----------------------------------------------------
+    
     log("Loading artifacts for MODEL 3 (player mode eval)...")
 
     if not os.path.exists(MODEL_PATH):
@@ -64,9 +64,9 @@ def main():
     if not os.path.exists(PLAYER_STRENGTH_PATH):
         raise FileNotFoundError(f"Player strengths file not found: {PLAYER_STRENGTH_PATH}")
 
-    # ----------------------------------------------------
+    
     # 1. Load objects
-    # ----------------------------------------------------
+    
     log("Loading base model (model2_xgb)...")
     model = xgb.XGBClassifier()
     
@@ -88,9 +88,9 @@ def main():
     log("Loading player strengths...")
     players_df = pd.read_csv(PLAYER_STRENGTH_PATH)
 
-    # ----------------------------------------------------
+   
     # 2. Build XI-based team strengths
-    # ----------------------------------------------------
+ 
     xi_df = build_xi_strengths(players_df, top_n=11)
     xi_map = xi_df.set_index("team")["xi_strength"].to_dict()
 
@@ -100,7 +100,7 @@ def main():
     df["home_strength_xi"] = df["home_team_clean"].map(xi_map)
     df["away_strength_xi"] = df["away_team_clean"].map(xi_map)
 
-    # Fallback: si pas de XI strength -> garder l'ancienne force d'équipe
+    # Fallback: si pas de XI strength, garder l'ancienne force d'équipe
     if "home_strength" not in df.columns or "away_strength" not in df.columns:
         raise ValueError("Columns 'home_strength' / 'away_strength' missing in training dataset.")
 
@@ -112,9 +112,9 @@ def main():
     df["away_strength"] = df["away_strength_xi"]
     df["strength_diff"] = df["home_strength"] - df["away_strength"]
 
-    # ----------------------------------------------------
+   
     # 3. Build feature matrix like model2
-    # ----------------------------------------------------
+   
     feature_cols = [
         "home_strength", "away_strength", "strength_diff",
         "home_goals_for", "away_goals_for",
@@ -134,9 +134,8 @@ def main():
     log(f"Using {len(feature_cols)} features: {feature_cols}")
     log(f"Dataset size: {X.shape[0]} rows")
 
-    # ----------------------------------------------------
-    # 4. Train/test split IDENTIQUE (random_state=42)
-    # ----------------------------------------------------
+ 
+    # 4. Train/test split IDENTIQUE 
     # On ne réentraine pas le modèle, on recrée juste le même split pour
     # que la comparaison model2 vs player_mode soit cohérente.
     X_train, X_test, y_train, y_test = train_test_split(
@@ -147,9 +146,9 @@ def main():
         stratify=y  # pour garder le ratio de classes
     )
 
-    # ----------------------------------------------------
+
     # 5. Evaluate with XI-based features
-    # ----------------------------------------------------
+   
     log("Computing predictions on test set with XI-based strengths (player mode)...")
     y_pred = model.predict(X_test)
     y_proba = model.predict_proba(X_test)
@@ -171,7 +170,7 @@ def main():
     mae_away = mean_absolute_error(y_true_onehot[:, 0], y_proba[:, 0])
     r2_away = r2_score(y_true_onehot[:, 0], y_proba[:, 0])
 
-    print("\n📊 === MODEL 3 (PLAYER MODE) METRICS — TEST SET (XI-based) ===")
+    print("\n MODEL 3 (PLAYER MODE) METRICS — TEST SET (XI-based) ")
     print(f"Accuracy : {acc:.4f}")
     print(f"F1 Score : {f1:.4f}")
     print(f"MSE Home : {mse_home:.4f}")
@@ -182,9 +181,9 @@ def main():
     print(f"R2 Away  : {r2_away:.4f}")
     print("=============================================================\n")
 
-    # ----------------------------------------------------
+  
     # 6. Sauvegarde JSON pour comparaison de modèles
-    # ----------------------------------------------------
+ 
     metrics = {
         "accuracy": float(acc),
         "f1_macro": float(f1),
@@ -201,9 +200,9 @@ def main():
     with open(metrics_path, "w") as f:
         json.dump(metrics, f, indent=2)
 
-    # ----------------------------------------------------
+   
     # 7. Log in MLflow (pipeline = player_mode / logical_model = model3)
-    # ----------------------------------------------------
+    
     mlflow.set_experiment("football_prediction_mlops")
     with mlflow.start_run(run_name="model3_player_mode_eval_xi"):
         mlflow.set_tag("model_name", "model2")        # même modèle de base

@@ -17,9 +17,9 @@ def log(msg):
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {msg}")
 
 
-# --------------------------------------------------------------
+
 # TEAM SELECTION
-# --------------------------------------------------------------
+
 
 def select_team(players_df, label):
     teams = sorted(players_df["team"].dropna().unique())
@@ -29,15 +29,15 @@ def select_team(players_df, label):
 
     team = input(f"\n{label} team: ").strip()
     while team not in teams:
-        print("❌ Team not found. Try again.")
+        print(" Team not found. Try again.")
         team = input(f"{label} team: ").strip()
 
     return team
 
 
-# --------------------------------------------------------------
+
 # PLAYER SELECTION (11 players)
-# --------------------------------------------------------------
+
 
 def select_players(players_df, team):
     team_players = players_df[players_df["team"] == team]
@@ -54,15 +54,14 @@ def select_players(players_df, team):
         if p in team_players["player"].values and p not in selected:
             selected.append(p)
         else:
-            print("❌ Invalid or duplicate player.")
+            print(" Invalid or duplicate player.")
 
     strength = team_players[team_players["player"].isin(selected)]["player_score"].mean()
     return strength
 
 
-# --------------------------------------------------------------
+
 # BUILD THE 12 FEATURES FOR THE MODEL
-# --------------------------------------------------------------
 
 def build_features(home_team, away_team):
     team_stats = pd.read_csv(TEAM_STATS_PATH)
@@ -109,9 +108,8 @@ def build_features(home_team, away_team):
     }
 
 
-# --------------------------------------------------------------
+
 # MAIN
-# --------------------------------------------------------------
 
 def main():
     log("Loading model...")
@@ -121,7 +119,7 @@ def main():
     log("Loading player strengths...")
     players_df = pd.read_csv(PLAYER_STRENGTH_PATH)
 
-    print("\n======= FOOTBALL MATCH PREDICTION (PLAYER MODE) ========\n")
+    print("\n FOOTBALL MATCH PREDICTION (PLAYER MODE) \n")
 
     home_team = select_team(players_df, "Home")
     away_team = select_team(players_df, "Away")
@@ -155,9 +153,9 @@ def main():
     print("  Draw     :", round(y_proba[1], 3))
     print("  Away Win :", round(y_proba[2], 3))
 
-    # ----------------------------------------------------------
+
     # METRICS ON A TEST SET (like models 1 & 2)
-    # ----------------------------------------------------------
+   
     df_train = pd.read_csv("data/processed/model2_training_dataset.csv")
 
     feature_cols = [
@@ -199,7 +197,7 @@ def main():
     mae_away = mean_absolute_error(y_true_onehot[:, 2], y_proba_test[:, 2])
     r2_away = r2_score(y_true_onehot[:, 2], y_proba_test[:, 2])
 
-    print("\n📊 === MODEL 3 (PLAYER MODE) METRICS (TEST SET) ===")
+    print("\n  MODEL 3 (PLAYER MODE) METRICS (TEST SET) ")
     print(f"Accuracy : {acc:.4f}")
     print(f"F1 Score : {f1:.4f}")
     print(f"MSE Home : {mse_home:.4f}")
@@ -210,9 +208,9 @@ def main():
     print(f"R2 Away  : {r2_away:.4f}")
     print("==========================================\n")
 
-    # ----------------------------------------------------------
+
     # SAVE OUTPUT FOR DVC (CSV)
-    # ----------------------------------------------------------
+
     os.makedirs("data/predictions", exist_ok=True)
     output_path = "data/predictions/model3_players_output.csv"
 
@@ -228,7 +226,7 @@ def main():
         "strength_diff": strength_diff
     }]).to_csv(output_path, index=False)
 
-    print(f"\n📝 Output saved to: {output_path}")
+    print(f"\n Output saved to: {output_path}")
 
 
 if __name__ == "__main__":

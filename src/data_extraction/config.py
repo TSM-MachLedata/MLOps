@@ -4,4 +4,4 @@ LEAGUES = [
     'INT-World Cup'
 ]
 
-SEASONS = ['2324', '2425', '2526']  # jusqu'à aujourd'hui
+SEASONS = ['2324', '2425', '2526']

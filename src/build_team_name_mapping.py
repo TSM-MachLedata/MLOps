@@ -53,7 +53,7 @@ def main():
 
     # 2) mapping manuel supplémentaire
     manual_map = {
-        # --- Clubs déjà présents ---
+        # Clubs déjà présents
         "Alavés": "Alaves",
         "Almería": "Almeria",
         "Cádiz": "Cadiz",
@@ -73,7 +73,7 @@ def main():
         "West Ham": "West Ham United",
         "Wolves": "Wolverhampton Wanderers",
 
-        # NEW (réparation des 6 équipes manquantes)
+        
         "Atlético Madrid": "Atletico Madrid",
         "Brighton": "Brighton and Hove Albion",
         "Inter": "Internazionale",
@@ -83,7 +83,7 @@ def main():
         "Düsseldorf": "",
         "Elversberg": "",
 
-        # --- Sélections nationales ---
+        # Sélections nationales
         "Albania": "Albania Men",
         "Austria": "Austria Men",
         "Belgium": "Belgium Men",

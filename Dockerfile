@@ -13,8 +13,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 ENV PYTHONUNBUFFERED=1
-# ❌ DO NOT hard-code PORT here
-# ENV PORT=8000   <-- remove this line if you still have it
 
-# ✅ Use $PORT provided by Cloud Run (default 8080), fallback 8000 for local
+
+#  Use $PORT provided by Cloud Run (default 8080), fallback 8000 for local
 CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]

@@ -17,17 +17,17 @@ from sklearn.metrics import (
 from xgboost import XGBClassifier
 
 
-# ---------------------------------------------------------------
+
 # UTILS
-# ---------------------------------------------------------------
+
 def log(msg: str):
     now = datetime.now().strftime("[%Y-%m-%d %H:%M:%S]")
     print(f"{now} {msg}")
 
 
-# ---------------------------------------------------------------
+
 # LOAD DATA
-# ---------------------------------------------------------------
+
 def load_data():
     log("Loading datasets...")
 
@@ -40,9 +40,9 @@ def load_data():
     return pre, team_stats
 
 
-# ---------------------------------------------------------------
+
 # FEATURE ENGINEERING
-# ---------------------------------------------------------------
+
 def create_features(pre, team_stats):
     log("Creating team long-term features...")
 
@@ -79,9 +79,9 @@ def create_features(pre, team_stats):
     return pre
 
 
-# ---------------------------------------------------------------
+
 # FINAL FEATURES
-# ---------------------------------------------------------------
+
 def select_model_features(df):
     log("Selecting features...")
 
@@ -107,9 +107,9 @@ def select_model_features(df):
     return df[features], df["result"]
 
 
-# ---------------------------------------------------------------
+
 # MAIN TRAINING PIPELINE
-# ---------------------------------------------------------------
+
 def main():
     pre, team_stats = load_data()
     df = create_features(pre, team_stats)
@@ -148,7 +148,7 @@ def main():
     y_pred = model.predict(X_test)
     y_proba = model.predict_proba(X_test)  # needed for metrics
 
-    # === METRICS ===
+    # METRICS
     accuracy = accuracy_score(y_test, y_pred)
     f1 = f1_score(y_test, y_pred, average="macro")
 
@@ -164,7 +164,7 @@ def main():
     mae_away = mean_absolute_error(y_true[:, 2], y_proba[:, 2])
     r2_away = r2_score(y_true[:, 2], y_proba[:, 2])
 
-    print("📊 METRICS (Model 2) :")
+    print(" METRICS (Model 2) :")
     print(f"  Accuracy:  {accuracy:.4f}")
     print(f"  F1 Score:  {f1:.4f}")
     print(f"  mse_home:  {mse_home:.4f}")
@@ -174,7 +174,7 @@ def main():
     print(f"  mae_away:  {mae_away:.4f}")
     print(f"  r2_away:   {r2_away:.4f}")
 
-    # === SAVE ARTIFACTS (model + dataset) ===
+    # SAVE ARTIFACTS (model + dataset)
     os.makedirs("models", exist_ok=True)
     model_path = "models/model2_xgb.json"
 
@@ -187,7 +187,7 @@ def main():
     df.to_csv(dataset_path, index=False)
     log(f"Saved dataset → {dataset_path}")
 
-    # 💾 metrics JSON
+    # metrics JSON
     metrics = {
         "accuracy": float(accuracy),
         "f1_macro": float(f1),
@@ -205,7 +205,7 @@ def main():
         json.dump(metrics, f, indent=2)
     log(f"Saved metrics JSON → {metrics_path}")
 
-    # === LOG TO MLFLOW ===
+    # LOG TO MLFLOW
     mlflow.set_experiment("football_prediction_mlops")
     with mlflow.start_run(run_name="model2_xgb_classifier"):
         mlflow.set_tag("model_name", "model2")

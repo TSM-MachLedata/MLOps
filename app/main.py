@@ -10,9 +10,9 @@ import xgboost as xgb
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
-# -------------------------------------------------
+
 # BOOT DEBUG (helps on Render / Cloud Run)
-# -------------------------------------------------
+
 print(">>> [app.main] import starting")
 print(">>> [app.main] CWD:", os.getcwd())
 print(">>> [app.main] ls .:", os.listdir("."))
@@ -38,12 +38,12 @@ app = FastAPI(
     version="1.2.0",
 )
 
-# -------------------------------------------------
+
 # Champion config
-# -------------------------------------------------
+
 
 CHAMPION_CONFIG_PATH = os.path.join(os.path.dirname(__file__), "champion_config.json")
-CHAMPION_KEY = os.getenv("CHAMPION_KEY_OVERRIDE")  # optional override via env
+CHAMPION_KEY = os.getenv("CHAMPION_KEY_OVERRIDE") 
 
 champion_config: Dict = {}
 try:
@@ -60,31 +60,28 @@ except Exception as e:
     print(traceback.format_exc())
     CHAMPION_KEY = CHAMPION_KEY or "model2"
 
-print(f"🏆 Loaded champion key: {CHAMPION_KEY}")
+print(f" Loaded champion key: {CHAMPION_KEY}")
 
 
 def with_champion_tag(base_key: str) -> str:
     return base_key + (" (champion)" if CHAMPION_KEY == base_key else "")
 
 
-# -------------------------------------------------
 # Artifacts (globals)
-# -------------------------------------------------
 
-# ✅ Use raw Booster objects in serving (more robust than sklearn wrappers)
 model2_booster: Optional[xgb.Booster] = None
 home_booster: Optional[xgb.Booster] = None
 away_booster: Optional[xgb.Booster] = None
 
 MODEL2_TEAMS: List[str] = []
-MODEL2_TEAM_STATS: Dict[str, Dict[str, float]] = {}  # dict instead of df
+MODEL2_TEAM_STATS: Dict[str, Dict[str, float]] = {} 
 
 player_strengths_df: Optional[pd.DataFrame] = None
 team_stats_df: Optional[pd.DataFrame] = None
 match_stats_df: Optional[pd.DataFrame] = None
 
 PLAYER_TEAMS: List[str] = []
-MODEL1_TEAMS: List[str] = []  # based on team_stats_multi_leagues.csv
+MODEL1_TEAMS: List[str] = []  
 
 MODEL1_TEAM_LOOKUP: Dict[str, str] = {}
 MODEL2_TEAM_LOOKUP: Dict[str, str] = {}
@@ -105,9 +102,8 @@ def _build_lookup(names: List[str]) -> Dict[str, str]:
     return lookup
 
 
-# -------------------------------------------------
 # MODEL 2: Load model (Booster) - separate from CSV parsing
-# -------------------------------------------------
+
 try:
     print("[BOOT] Loading model2 booster (models/model2_xgb.json) ...")
     model2_booster = xgb.Booster()
@@ -119,9 +115,8 @@ except Exception as e:
     print(traceback.format_exc())
 
 
-# -------------------------------------------------
 # MODEL 2: Load team stats dict from training dataset (separate try)
-# -------------------------------------------------
+
 try:
     print("[BOOT] CWD:", os.getcwd())
     try:
@@ -182,26 +177,25 @@ try:
 
     MODEL2_TEAMS = sorted(MODEL2_TEAM_STATS.keys())
     MODEL2_TEAM_LOOKUP = _build_lookup(MODEL2_TEAMS)
-    print(f"✅ Built in-memory team stats for model2. {len(MODEL2_TEAMS)} teams.")
+    print(f" Built in-memory team stats for model2. {len(MODEL2_TEAMS)} teams.")
 except Exception as e:
     MODEL2_TEAM_STATS = {}
     MODEL2_TEAMS = []
     MODEL2_TEAM_LOOKUP = {}
-    print(f"⚠️ Could not load model2 team stats from CSV: {e}")
+    print(f" Could not load model2 team stats from CSV: {e}")
     print(traceback.format_exc())
 
 
-# -------------------------------------------------
 # Player-mode + team stats artifacts (model3 + model1 features)
-# -------------------------------------------------
+
 try:
-    # player strengths → only what's needed
+    # player strengths 
     player_strengths_df = pd.read_csv(
         "data/processed/player_strengths.csv",
         usecols=["team", "player", "player_score"],
     )
 
-    # long-term team stats → only columns we actually use
+    # long-term team stats 
     team_stats_df = pd.read_csv(
         "data/raw/team_stats_multi_leagues.csv",
         usecols=[
@@ -216,7 +210,7 @@ try:
         ],
     )
 
-    # xG match stats → only opponent + xG
+    # xG match stats 
     match_stats_df = pd.read_csv(
         "data/raw/team_match_stats_model2.csv",
         usecols=["opponent", "xG"],
@@ -245,35 +239,34 @@ try:
         )
 
     print(
-        f"✅ Loaded player-mode artifacts (light). "
+        f" Loaded player-mode artifacts (light). "
         f"{len(PLAYER_TEAMS)} teams with player strengths, "
         f"{len(MODEL1_TEAMS)} teams with long-term stats."
     )
 except Exception as e:
-    print(f"⚠️ Could not load player-mode / team-stats artifacts: {e}")
+    print(f" Could not load player-mode / team-stats artifacts: {e}")
     print(traceback.format_exc())
 
 
-# -------------------------------------------------
+
 # MODEL 1 regression (home/away goals) — Booster load
-# -------------------------------------------------
+
 try:
     print("[BOOT] Loading model1 boosters (app/models/home_model.json, away_model.json) ...")
     home_booster = xgb.Booster()
     away_booster = xgb.Booster()
     home_booster.load_model("app/models/home_model.json")
     away_booster.load_model("app/models/away_model.json")
-    print("✅ Loaded model1 boosters.")
+    print(" Loaded model1 boosters.")
 except Exception as e:
     home_booster = None
     away_booster = None
-    print(f"⚠️ Could not load model1 boosters: {e}")
+    print(f" Could not load model1 boosters: {e}")
     print(traceback.format_exc())
 
 
-# -------------------------------------------------
 # Pydantic schemas
-# -------------------------------------------------
+
 class TeamRequest(BaseModel):
     home_team: str
     away_team: str
@@ -286,9 +279,8 @@ class PlayerMatchRequest(BaseModel):
     away_players: List[str]
 
 
-# -------------------------------------------------
 # Helpers
-# -------------------------------------------------
+
 def validate_team_exists(team: str, context: str = "model2") -> str:
     """
     Check that a team exists in the appropriate list, case-insensitive.
@@ -330,16 +322,16 @@ def _predict_proba_model2(X: pd.DataFrame) -> List[float]:
     dm = xgb.DMatrix(X)
     proba = model2_booster.predict(dm)
 
-    # proba can be shape (1, 3) for single row
+
     if hasattr(proba, "shape") and len(proba.shape) == 2:
         return [float(p) for p in proba[0]]
-    # fallback (shouldn't happen for softprob with 1 row, but just in case)
+    
     return [float(p) for p in proba]
 
 
-# -------------------------------------------------
+
 # MODEL 1 feature builder (regression)
-# -------------------------------------------------
+
 def build_features_model1(home_team: str, away_team: str) -> pd.DataFrame:
     """
     Build numeric features for model1 from team_stats_multi_leagues.csv
@@ -389,9 +381,9 @@ def build_features_model1(home_team: str, away_team: str) -> pd.DataFrame:
     )
 
 
-# -------------------------------------------------
+
 # MODEL 2 helpers (dict-based stats)
-# -------------------------------------------------
+
 def _get_team_stat(team: str, *keys: str) -> float:
     """Return first available stat for team among given keys, else 0.0."""
     stats = MODEL2_TEAM_STATS.get(team, {})
@@ -468,9 +460,8 @@ def build_features_model2(home_team: str, away_team: str) -> pd.DataFrame:
     return row, home_team_canon, away_team_canon
 
 
-# -------------------------------------------------
 # Player-mode helpers (MODEL 3)
-# -------------------------------------------------
+
 def compute_team_strength(team: str, players: List[str]) -> float:
     """Compute mean player_score for exactly 11 valid, unique players of a team (case-insensitive)."""
     if player_strengths_df is None:
@@ -591,9 +582,9 @@ def build_features_player_mode(
     )
 
 
-# -------------------------------------------------
+
 # Endpoints
-# -------------------------------------------------
+
 @app.get("/info/champion")
 def get_champion_info():
     return {
@@ -602,7 +593,7 @@ def get_champion_info():
     }
 
 
-# ---------- MODEL 1: regression on goals -------------------------------
+# MODEL 1: regression on goals 
 @app.post("/predict/model1")
 def predict_model1(req: TeamRequest):
     """
@@ -636,7 +627,7 @@ def predict_model1(req: TeamRequest):
     }
 
 
-# ---------- MODEL 2: team-level classifier -----------------------------
+# MODEL 2: team-level classifier
 @app.post("/predict/model2")
 def predict_model2(req: TeamRequest):
     X, home_team_canon, away_team_canon = build_features_model2(req.home_team, req.away_team)
@@ -661,7 +652,7 @@ def predict_model2(req: TeamRequest):
     }
 
 
-# ---------- MODEL 3: player-mode classifier ----------------------------
+# MODEL 3: player-mode classifier
 @app.post("/predict/model3")
 def predict_player_mode(req: PlayerMatchRequest):
     if model2_booster is None:

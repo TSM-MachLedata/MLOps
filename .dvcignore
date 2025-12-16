@@ -14,5 +14,5 @@ __pycache__/
 .venv
 .ci-venv
 
-# Local artifacts you don't need in the image
+# Local artifacts not needed in the image
 mlruns/

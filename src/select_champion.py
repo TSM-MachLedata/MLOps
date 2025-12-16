@@ -20,7 +20,7 @@ def log(msg: str):
 
 
 def main():
-    log("🔎 Reading metrics for model comparison...")
+    log(" Reading metrics for model comparison...")
 
     metrics_by_model = {}
     for name, path in METRICS_FILES.items():
@@ -28,10 +28,10 @@ def main():
             with open(path, "r", encoding="utf-8") as f:
                 metrics_by_model[name] = json.load(f)
         else:
-            log(f"⚠️ Metrics file missing for {name}: {path}")
+            log(f" Metrics file missing for {name}: {path}")
 
     if not metrics_by_model:
-        raise SystemExit("❌ No metrics files found, cannot select champion.")
+        raise SystemExit(" No metrics files found, cannot select champion.")
 
     def score(model_name: str):
         m = metrics_by_model[model_name]
@@ -41,7 +41,7 @@ def main():
     # argmax sur le tuple (f1, acc)
     champion_key = max(metrics_by_model.keys(), key=score)
 
-    log(f"🏆 Champion model selected: {champion_key}")
+    log(f" Champion model selected: {champion_key}")
     log(f"   Metrics: {metrics_by_model[champion_key]}")
 
     config = {
@@ -56,7 +56,7 @@ def main():
     with champion_path.open("w", encoding="utf-8") as f:
         json.dump(config, f, indent=2)
 
-    log(f"💾 Champion config written to {champion_path}")
+    log(f" Champion config written to {champion_path}")
 
 
 if __name__ == "__main__":

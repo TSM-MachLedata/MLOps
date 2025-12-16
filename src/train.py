@@ -18,12 +18,12 @@ import mlflow.xgboost
 def main():
     print(" Démarrage de l’entraînement des modèles XGBoost...")
 
-    # 1️⃣ Charger les données prétraitées
+    # Charger les données prétraitées
     data_path = "data/processed/clean_matches.csv"
     data = pd.read_csv(data_path)
-    print(f"✅ Données chargées : {data.shape[0]} matchs, {data.shape[1]} colonnes")
+    print(f" Données chargées : {data.shape[0]} matchs, {data.shape[1]} colonnes")
 
-    # 2️⃣ Sélection des features numériques pertinentes
+    # Sélection des features numériques pertinentes
     features = [
         "home_matches_played",
         "home_goals_for",
@@ -43,7 +43,7 @@ def main():
     y_home = data["home_goals"]
     y_away = data["away_goals"]
 
-    # 3️⃣ Division train/test
+    # Division train/test
     X_train, X_test, y_home_train, y_home_test = train_test_split(
         X, y_home, test_size=0.2, random_state=42
     )
@@ -56,7 +56,7 @@ def main():
     learning_rate = 0.1
     max_depth = 5
 
-    # 4️⃣ Configuration MLflow
+    # Configuration MLflow
     mlflow.set_experiment("football_prediction_mlops")
     with mlflow.start_run(run_name="xgboost_multi_leagues"):
         # Tags & params comme pour model2 / model3
@@ -70,7 +70,7 @@ def main():
         mlflow.log_param("max_depth", max_depth)
         mlflow.log_param("learning_rate", learning_rate)
 
-        # 5️⃣ Entraînement des modèles
+        # Entraînement des modèles
         model_home = xgb.XGBRegressor(
             objective="reg:squarederror",
             random_state=42,
@@ -89,7 +89,7 @@ def main():
         model_home.fit(X_train, y_home_train)
         model_away.fit(X_train, y_away_train)
 
-        # 6️⃣ Évaluation régression
+        # Évaluation régression
         y_home_pred = model_home.predict(X_test)
         y_away_pred = model_away.predict(X_test)
 
@@ -102,7 +102,7 @@ def main():
             "r2_away": r2_score(y_away_test, y_away_pred),
         }
 
-        # 🔁 Métriques "classification" dérivées (Home/Away/Draw)
+        # Métriques "classification" dérivées (Home/Away/Draw)
         def to_result(home_g, away_g):
             if home_g > away_g:
                 return "Home Win"
@@ -128,13 +128,13 @@ def main():
         for k, v in metrics.items():
             print(f"  {k}: {v:.4f}")
 
-        # 💾 Sauvegarde JSON pour comparaison de modèles (model1_metrics.json)
+        # Sauvegarde JSON pour comparaison de modèles (model1_metrics.json)
         os.makedirs("reports", exist_ok=True)
         model1_metrics_path = os.path.join("reports", "model1_metrics.json")
         with open(model1_metrics_path, "w", encoding="utf-8") as f:
             json.dump({k: float(v) for k, v in metrics.items()}, f, indent=2)
 
-        # 7️⃣ Sauvegarde des modèles
+        # Sauvegarde des modèles
         os.makedirs("app/models", exist_ok=True)
         home_model_path = "app/models/home_model.json"
         away_model_path = "app/models/away_model.json"
@@ -151,7 +151,7 @@ def main():
             mlflow.log_artifact(data_path)
         mlflow.log_artifact(model1_metrics_path)
 
-        print("✅ Modèles sauvegardés et enregistrés dans MLflow.")
+        print(" Modèles sauvegardés et enregistrés dans MLflow.")
 
 
 if __name__ == "__main__":

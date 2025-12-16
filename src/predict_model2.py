@@ -9,18 +9,18 @@ import warnings
 warnings.filterwarnings("ignore")
 
 
-# ----------------------------------------------------------
+
 # UTILS
-# ----------------------------------------------------------
+
 
 def log(msg):
     now = datetime.now().strftime("[%Y-%m-%d %H:%M:%S]")
     print(f"{now} {msg}")
 
 
-# ----------------------------------------------------------
+
 # LOAD MODEL + DATA
-# ----------------------------------------------------------
+
 
 def load_artifacts():
     log("Loading model & datasets...")
@@ -33,9 +33,9 @@ def load_artifacts():
     return model, df_train
 
 
-# ----------------------------------------------------------
+
 # BUILD FEATURE ROW FOR PREDICTION
-# ----------------------------------------------------------
+
 
 def build_input_features(df_train, home, away):
 
@@ -71,9 +71,9 @@ def build_input_features(df_train, home, away):
     return row
 
 
-# ----------------------------------------------------------
+
 # PREDICT
-# ----------------------------------------------------------
+
 
 def predict(model, features, home, away):
     proba = model.predict_proba(features)[0]
@@ -88,14 +88,14 @@ def predict(model, features, home, away):
     return mapping[pred], proba, pred
 
 
-# ----------------------------------------------------------
+
 # MAIN
-# ----------------------------------------------------------
+
 
 def main():
     model, df_train = load_artifacts()
 
-    print("\n=== FOOTBALL MATCH PREDICTION ===\n")
+    print("\n FOOTBALL MATCH PREDICTION \n")
     home = input("Home team: ").strip()
     away = input("Away team: ").strip()
 
@@ -103,7 +103,7 @@ def main():
 
     outcome, proba, pred_class = predict(model, features, home, away)
 
-    print("\n================= RESULT =================")
+    print("\n RESULT ")
     print(f"Prediction: {outcome}")
     print(f"Probas:")
     print(f"  Away Win : {proba[0]:.3f}")
@@ -111,9 +111,9 @@ def main():
     print(f"  Home Win : {proba[2]:.3f}")
     print("==========================================\n")
 
-    # ------------------------------------------------------
+
     # ADD METRICS LIKE MODEL 1
-    # ------------------------------------------------------
+
 
     # Load true labels & preds to compute metrics
     y_true = df_train["result_xgb"]       # True labels 0/1/2
@@ -139,7 +139,7 @@ def main():
     r2_away = r2_score([1 if y==0 else 0 for y in y_true],
                        [p[0] for p in model.predict_proba(features_all)])
 
-    print("\n📊 === MODEL 2 METRICS ===")
+    print("\n  MODEL 2 METRICS ")
     print(f"Accuracy : {acc:.4f}")
     print(f"F1 Score : {f1:.4f}")
     print(f"MSE Home : {mse_home:.4f}")
@@ -150,9 +150,9 @@ def main():
     print(f"R2 Away  : {r2_away:.4f}")
     print("==========================================\n")
 
-    # ----------------------------------------------------------
+    
     # DVC OUTPUT SAVE
-    # ----------------------------------------------------------
+    
     os.makedirs("data/predictions", exist_ok=True)
     path = "data/predictions/model2_predictions.csv"
 
@@ -165,7 +165,7 @@ def main():
         "proba_home_win": proba[2],
     }]).to_csv(path, index=False)
 
-    print(f"📝 Saved to {path}")
+    print(f" Saved to {path}")
 
 
 if __name__ == "__main__":

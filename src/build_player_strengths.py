@@ -21,7 +21,7 @@ def main():
 
     log("Extracting meaningful features...")
 
-    # === EXTRACTION SÉCURISÉE DES STATS FBREF ===
+    # EXTRACTION SÉCURISÉE DES STATS FBREF
     df["goals"]        = safe_get(df, "Performance")       # Gls
     df["assists"]      = safe_get(df, "Performance.1")     # Ast
     df["yellow_cards"] = safe_get(df, "Performance.6")     # CrdY
@@ -35,7 +35,7 @@ def main():
     df["assists_per90"] = safe_get(df, "Per 90 Minutes.1")    # Ast/90
     df["xG_per90"]      = safe_get(df, "Per 90 Minutes.5")    # xG/90
 
-    # === CALCUL SCORE JOUEUR ===
+    # CALCUL SCORE JOUEUR
     df["player_score"] = (
         df["goals"] * 4 +
         df["assists"] * 3 +
@@ -51,10 +51,10 @@ def main():
     # Nettoyage : garder seulement joueurs valides
     df = df[df["team"].notna() & df["player"].notna()]
 
-    # === FORCE : aucun score = 0 systématique n'est possible maintenant ===
+    # FORCE : aucun score = 0 systématique n'est possible maintenant
     df["player_score"] = df["player_score"].fillna(0)
 
-    # === MOYENNE PAR ÉQUIPE ===
+    # MOYENNE PAR ÉQUIPE
     log("Computing team strengths...")
 
     team_strengths = (
@@ -64,7 +64,7 @@ def main():
         .rename(columns={"player_score": "team_strength"})
     )
 
-    # === SAUVEGARDE ===
+    # SAUVEGARDE
     df.to_csv("data/processed/player_strengths.csv", index=False)
     team_strengths.to_csv("data/processed/team_strengths.csv", index=False)
 

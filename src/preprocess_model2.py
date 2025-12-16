@@ -25,7 +25,7 @@ def load_raw_data():
     return schedule, players, mapping
 
 
-# ----------------------- CLEAN SCHEDULE -----------------------------
+# CLEAN SCHEDULE
 
 def clean_score(score_str):
     if pd.isna(score_str):
@@ -69,7 +69,7 @@ def prepare_schedule(schedule: pd.DataFrame) -> pd.DataFrame:
     return schedule
 
 
-# ------------------------ PLAYER SCORING ----------------------------
+# PLAYER SCORING
 
 def compute_player_scores(players: pd.DataFrame, mapping: pd.DataFrame) -> pd.DataFrame:
     log("Computing player scores...")
@@ -142,7 +142,7 @@ def compute_player_scores(players: pd.DataFrame, mapping: pd.DataFrame) -> pd.Da
     return df[["team_clean", "player", "pos", "player_score"]]
 
 
-# ---------------------- TEAM STRENGTH ------------------------------
+# TEAM STRENGTH
 
 def aggregate_team_strength(player_scores: pd.DataFrame) -> pd.DataFrame:
     log("Aggregating team strengths...")
@@ -158,7 +158,7 @@ def aggregate_team_strength(player_scores: pd.DataFrame) -> pd.DataFrame:
     return team_strength
 
 
-# ---------------------- APPLY MAPPING ------------------------------
+# APPLY MAPPING
 
 def apply_mapping(schedule, mapping):
     log("Applying team name mapping...")
@@ -171,7 +171,7 @@ def apply_mapping(schedule, mapping):
     return schedule
 
 
-# ---------------------- MERGE FINAL DATASET ------------------------
+# MERGE FINAL DATASET
 
 def build_final_dataset(schedule, team_strength):
     log("Merging schedule with team strengths...")
