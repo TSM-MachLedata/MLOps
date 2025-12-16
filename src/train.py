@@ -124,7 +124,7 @@ def main():
         for k, v in metrics.items():
             mlflow.log_metric(k, v)
 
-        print("📊 Résultats du modèle :")
+        print(" Résultats du modèle :")
         for k, v in metrics.items():
             print(f"  {k}: {v:.4f}")
 
