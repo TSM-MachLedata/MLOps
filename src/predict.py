@@ -20,7 +20,7 @@ def main():
     home_model.load_model(os.path.join(model_path, "home_model.json"))
     away_model.load_model(os.path.join(model_path, "away_model.json"))
 
-    print(f"✅ Données chargées : {len(data)} matchs")
+    print(f" Données chargées : {len(data)} matchs")
 
     # Préparer les features (identiques à celles de train.py)
     features = [
