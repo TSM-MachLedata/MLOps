@@ -78,82 +78,21 @@ app/champion_config.json
 
 - Fully automated build and deploy to Google Cloud Run
 
-## Pipeline Overview
-
-┌─────────────┐
-│ Data fetch  │
-└──────┬──────┘
-       │
-   Raw data (DVC)
-       │
-┌──────▼──────┐
-│Preprocessing│
-└──────┬──────┘
-┌──────┼──────────────┐
-│      │              │
-▼      ▼              ▼
-Model1 Model2        Model3
-│      │              │
-└──────┴──────┬───────┘
-              ▼
-     select_champion.py
-              │
-     champion_config.json
-              │
-         ┌────▼────┐
-         │  API    │
-         └────┬────┘
-              │
-        ┌─────▼─────┐
-        │ Dashboard │
-        └─────┬─────┘
-              │
-      monitor_drift.py
-              │
-      retrain_if_drift.py
-
-At the top level, data ingestion feeds into a unified preprocessing stage. Three models are trained: a regression, a classification, and a player-mode classification. Their metrics are compared and a champion is selected. The API and dashboard both reference the champion config file. A drift monitor continuously checks incoming data; if drift is detected, it triggers a full retrain and champion re-selection.
-
-## Quick start
-
-### Local Setup
-#### Clone and install
-
-git clone https://github.com/TSM-MachLedata/MLOps.git
-cd MLOps
-pip install -r requirements.txt
-pip install "dvc[gs]"
-
-#### Configure DVC remote and pull artifacts
-
-echo "$GCP_SERVICE_ACCOUNT_KEY" > gcp-key.json
-dvc remote modify --local gcsremote credentialpath gcp-key.json
-dvc config cache.type copy --local
-dvc pull
-
-#### Reproduce the pipeline
-dvc repro
-
-#### Run the API locally
-uvicorn app.main:app --host 0.0.0.0 --port 8000
-
-#### API link:
-
-http://localhost:8000/docs
-
-#### Launch the Streamlit dashboard
-streamlit run dashboard_streamlit.py
 
 ## CI/CD and Deployment
 
 Two GitHub Actions workflows orchestrate the pipeline end-to-end:
 
-Workflow	Purpose	Trigger
-retrain.yml	Schedules drift monitoring and conditional retraining. Sets up DVC and MLflow and calls retrain_if_drift.py.	Daily at 03:00 Europe/Zurich time or manual dispatch
-deploy.yml	Builds the Docker image, runs a local smoke test on /docs, pushes to Artifact Registry, and deploys to Cloud Run (europe-west4).	On push to main or manual dispatch
+| Workflow    | Purpose | Trigger |
+|------------|---------|---------|
+| `retrain.yml` | Schedules drift monitoring and conditional retraining. Sets up DVC and MLflow and calls `retrain_if_drift.py`. | Daily at 03:00 (Europe/Zurich) or manual dispatch |
+| `deploy.yml`  | Builds the Docker image, runs a local smoke test on `/docs`, pushes to Artifact Registry, and deploys to Cloud Run (`europe-west4`). | On push to `main` or manual dispatch |
+
+---
 
 ## Project Structure
 
+```text
 MLOps/
 ├── .dvc/                      # DVC cache and config (partial)
 ├── app/
@@ -181,5 +120,8 @@ MLOps/
 ├── Dockerfile
 └── README.md                  # This file
 
+```
+
+---
 ## Citation
 This project accompanies the report: "Pipeline MLOps de prédiction de matchs de football".
