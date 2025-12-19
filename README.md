@@ -20,14 +20,14 @@ Everything is:
 
 ## Table of Contents
 
-- Features
-- Pipeline Overview
-- Quick Start
-- API Usage
-- Monitoring and Retraining
-- CI/CD and Deployment
-- Project Structure
-- Acknowledgements and Citation
+- [Features](#features)
+- [Pipeline Overview](#pipeline-overview)
+- [Quick Start](#quick-start)
+- [API Usage](#api-usage)
+- [Monitoring and Retraining](#monitoring-and-retraining)
+- [CI/CD and Deployment](#cicd-and-deployment)
+- [Project Structure](#project-structure)
+- [Acknowledgements and Citation](#acknowledgements-and-citation)
 
 ---
 
@@ -40,9 +40,9 @@ Automated downloading and scraping of match fixtures and statistics via Python s
 ### Preprocessing and Feature Engineering
 Raw data is harmonised into three modeling modes:
 
-- Model 1 — Goal regression (XGBoost Regressor)
-- Model 2 — Match outcome classification (Home / Draw / Away) using team strength and xG (XGBoost Classifier)
-- Model 3 — Player mode using average player strength scores per team for custom lineups
+- **Model 1** — Goal regression (XGBoost Regressor)
+- **Model 2** — Match outcome classification (Home / Draw / Away) using team strength and xG (XGBoost Classifier)
+- **Model 3** — Player mode using average player strength scores per team for custom lineups
 
 ### Training and Evaluation
 - Models trained with XGBoost
@@ -55,5 +55,131 @@ Raw data is harmonised into three modeling modes:
 2. `accuracy`
 
 The selected model is written to:
-```text
+
 app/champion_config.json
+
+### Data Drift Monitoring
+
+- monitor_drift.py applies Kolmogorov–Smirnov tests
+
+- Drift computed on matches, player strengths, and team statistics
+
+- If drift exceeds 30%, retraining is triggered automatically via retrain_if_drift.py
+
+### API and Dashboard
+
+- FastAPI service exposes prediction endpoints and champion info
+
+- Streamlit dashboard visualises metrics, drift status, and allows interactive inference
+
+### CI/CD
+
+- GitHub Actions workflows for scheduled retraining and deployment
+
+- Fully automated build and deploy to Google Cloud Run
+
+## Pipeline Overview
+
+┌─────────────┐
+│ Data fetch  │
+└──────┬──────┘
+       │
+   Raw data (DVC)
+       │
+┌──────▼──────┐
+│Preprocessing│
+└──────┬──────┘
+┌──────┼──────────────┐
+│      │              │
+▼      ▼              ▼
+Model1 Model2        Model3
+│      │              │
+└──────┴──────┬───────┘
+              ▼
+     select_champion.py
+              │
+     champion_config.json
+              │
+         ┌────▼────┐
+         │  API    │
+         └────┬────┘
+              │
+        ┌─────▼─────┐
+        │ Dashboard │
+        └─────┬─────┘
+              │
+      monitor_drift.py
+              │
+      retrain_if_drift.py
+
+At the top level, data ingestion feeds into a unified preprocessing stage. Three models are trained: a regression, a classification, and a player-mode classification. Their metrics are compared and a champion is selected. The API and dashboard both reference the champion config file. A drift monitor continuously checks incoming data; if drift is detected, it triggers a full retrain and champion re-selection.
+
+## Quick start
+
+### Local Setup
+#### Clone and install
+
+git clone https://github.com/TSM-MachLedata/MLOps.git
+cd MLOps
+pip install -r requirements.txt
+pip install "dvc[gs]"
+
+#### Configure DVC remote and pull artifacts
+
+echo "$GCP_SERVICE_ACCOUNT_KEY" > gcp-key.json
+dvc remote modify --local gcsremote credentialpath gcp-key.json
+dvc config cache.type copy --local
+dvc pull
+
+#### Reproduce the pipeline
+dvc repro
+
+#### Run the API locally
+uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+#### API link:
+
+http://localhost:8000/docs
+
+#### Launch the Streamlit dashboard
+streamlit run dashboard_streamlit.py
+
+## CI/CD and Deployment
+
+Two GitHub Actions workflows orchestrate the pipeline end-to-end:
+
+Workflow	Purpose	Trigger
+retrain.yml	Schedules drift monitoring and conditional retraining. Sets up DVC and MLflow and calls retrain_if_drift.py.	Daily at 03:00 Europe/Zurich time or manual dispatch
+deploy.yml	Builds the Docker image, runs a local smoke test on /docs, pushes to Artifact Registry, and deploys to Cloud Run (europe-west4).	On push to main or manual dispatch
+
+## Project Structure
+
+MLOps/
+├── .dvc/                      # DVC cache and config (partial)
+├── app/
+│   ├── main.py                # FastAPI application
+│   └── champion_config.json   # Selected champion model (generated)
+├── data/
+│   ├── processed/             # Cleaned and feature-engineered datasets
+│   ├── raw/                   # Raw datasets
+│   └── team_name_mapping.csv
+├── models/                    # Trained model artifacts (e.g. model2_xgb.json)
+├── reports/                   # Metrics, drift reports and summary JSON
+├── src/
+│   ├── monitor_drift.py
+│   ├── retrain_if_drift.py
+│   ├── select_champion.py
+│   ├── train.py               # Training Model 1 (regression)
+│   ├── train_model2.py        # Training Model 2 (classification)
+│   ├── eval_model3_player_mode.py
+│   └── …
+├── .github/workflows/
+│   ├── retrain.yml            # Scheduled monitoring and conditional retrain
+│   └── deploy.yml             # Build and deploy to Cloud Run
+├── dvc.yaml                   # Pipeline definitions and dependencies
+├── requirements.txt
+├── Dockerfile
+└── README.md                  # This file
+
+## Citation
+This project accompanies the report: "Pipeline MLOps de prédiction de matchs de football".
