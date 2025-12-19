@@ -65,6 +65,7 @@ app/champion_config.json
 
 - Fully automated build and deploy to Google Cloud Run
 
+---
 
 ## CI/CD and Deployment
 
