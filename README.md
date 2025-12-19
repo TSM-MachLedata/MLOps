@@ -18,19 +18,6 @@ Everything is:
 
 ---
 
-## Table of Contents
-
-- [Features](#features)
-- [Pipeline Overview](#pipeline-overview)
-- [Quick Start](#quick-start)
-- [API Usage](#api-usage)
-- [Monitoring and Retraining](#monitoring-and-retraining)
-- [CI/CD and Deployment](#cicd-and-deployment)
-- [Project Structure](#project-structure)
-- [Acknowledgements and Citation](#acknowledgements-and-citation)
-
----
-
 ## Features
 
 ### Data Ingestion
@@ -86,7 +73,7 @@ Two GitHub Actions workflows orchestrate the pipeline end-to-end:
 | Workflow    | Purpose | Trigger |
 |------------|---------|---------|
 | `retrain.yml` | Schedules drift monitoring and conditional retraining. Sets up DVC and MLflow and calls `retrain_if_drift.py`. | Daily at 03:00 (Europe/Zurich) or manual dispatch |
-| `deploy.yml`  | Builds the Docker image, runs a local smoke test on `/docs`, pushes to Artifact Registry, and deploys to Cloud Run (`europe-west4`). | On push to `main` or manual dispatch |
+| `deploy.yml`  | Builds the Docker image, runs a local smoke test on `/docs`, pushes to Artifact Registry, and deploys to Cloud Run (`europe-west4`). | Manual dispatch |
 
 ---
 
